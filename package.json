@@ -1,0 +1,9 @@
+{
+  "name": "notum",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Türkiye'deki üniversite öğrencileri için ders notu alış-satış platformu.",
+  "scripts": {
+    "start": "node server.js"
+  }
+}
