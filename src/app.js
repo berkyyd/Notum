@@ -473,8 +473,9 @@ const officePreviewCache = new Map();
 let theme = localStorage.getItem(THEME_KEY) || "light";
 let profilePanel = "overview";
 let profileDiscoverPage = 0;
-let adminUserFilters = { query: "", university: "", department: "", role: "" };
+let adminUserFilters = { query: "", university: "", department: "", role: "", sort: "new" };
 let badgeModalUserId = null;
+let avatarModalUserId = null;
 let programCatalog = [];
 
 document.documentElement.dataset.theme = theme;
@@ -497,6 +498,7 @@ function routeToHash(nextRoute) {
 
 function navigate(nextRoute, options = {}) {
   route = nextRoute || { page: "home" };
+  avatarModalUserId = null;
   const nextHash = routeToHash(route);
   if (window.location.hash !== nextHash) {
     history[options.replace ? "replaceState" : "pushState"]({ route }, "", nextHash);
@@ -506,6 +508,7 @@ function navigate(nextRoute, options = {}) {
 
 window.addEventListener("popstate", () => {
   route = routeFromLocation();
+  avatarModalUserId = null;
   render();
 });
 
@@ -532,6 +535,7 @@ function normalizeState(nextState) {
   nextState.users.forEach((user) => {
     user.bio ||= user.role === "admin" ? "Notum moderasyon ekibi" : `${user.department || "Üniversite"} notlarını keşfediyor ve paylaşıyor.`;
     user.profileColor ||= user.id === "u-seller" ? "#30d5c8" : user.id === "u-admin" ? "#ffbe55" : "#ff5f8f";
+    user.avatarData ||= "";
     user.adminStats ||= {};
     user.badgeOverrides ||= [];
   });
@@ -540,6 +544,7 @@ function normalizeState(nextState) {
 
 function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  window.NotumSupabase?.saveState(state);
 }
 
 function id(prefix) {
@@ -548,6 +553,19 @@ function id(prefix) {
 
 function currentUser() {
   return state.users.find((user) => user.id === state.currentUserId) || null;
+}
+
+function isStudentEmail(email) {
+  const domain = String(email || "").trim().toLocaleLowerCase("tr").split("@")[1] || "";
+  return /(^|\.)edu(\.|$)/i.test(domain);
+}
+
+function isAdminEmail(email) {
+  return String(email || "").trim().toLocaleLowerCase("tr") === "bdemircanli15@gmail.com";
+}
+
+function canUseProfileEmail(email, role = "student") {
+  return isStudentEmail(email) || (role === "admin" && isAdminEmail(email));
 }
 
 function money(value) {
@@ -595,6 +613,12 @@ function unique(items, key) {
 
 async function loadProgramCatalog() {
   try {
+    const supabaseCatalog = await window.NotumSupabase?.loadProgramCatalog?.();
+    if (supabaseCatalog?.length) {
+      programCatalog = normalizeProgramCatalog(supabaseCatalog);
+      programCatalog = mergeProgramCatalog(programCatalog);
+      return;
+    }
     const response = await fetch(PROGRAM_CATALOG_URL, { cache: "no-store" });
     if (!response.ok) throw new Error("Program kataloğu yüklenemedi.");
     programCatalog = normalizeProgramCatalog(await response.json());
@@ -715,6 +739,7 @@ function escapeHtml(value) {
 
 function render() {
   const user = currentUser();
+  const avatarModalUser = avatarModalUserId ? state.users.find((item) => item.id === avatarModalUserId) : null;
   document.documentElement.dataset.theme = theme;
   document.getElementById("app").innerHTML = `
     <header class="topbar">
@@ -741,6 +766,7 @@ function render() {
       </div>
     </header>
     <main>${page()}</main>
+    ${avatarModalUser ? avatarModal(avatarModalUser) : ""}
   `;
   bindEvents();
 }
@@ -1290,7 +1316,7 @@ function studentPage() {
   const favs = state.favorites.filter((favorite) => favorite.userId === user.id).map((favorite) => state.notes.find((note) => note.id === favorite.noteId)).filter(Boolean);
   const myReviews = state.reviews.filter((review) => review.userId === user.id);
   return `
-    <section class="dashboard">
+    <section class="dashboard student-dashboard">
       ${stats([
         { label: "Satın aldığım", value: purchased.length, target: "student-purchases" },
         { label: "Favoriler", value: favs.length, target: "student-favorites" },
@@ -1382,6 +1408,12 @@ function adminUsersPanel() {
           <option value="student" ${adminUserFilters.role === "student" ? "selected" : ""}>Öğrenci</option>
           <option value="admin" ${adminUserFilters.role === "admin" ? "selected" : ""}>Admin</option>
         </select>
+        <select name="sort">
+          <option value="new" ${adminUserFilters.sort === "new" ? "selected" : ""}>Yeniden eskiye</option>
+          <option value="old" ${adminUserFilters.sort === "old" ? "selected" : ""}>Eskiden yeniye</option>
+          <option value="az" ${adminUserFilters.sort === "az" ? "selected" : ""}>A-Z</option>
+          <option value="za" ${adminUserFilters.sort === "za" ? "selected" : ""}>Z-A</option>
+        </select>
         <button class="primary small" type="submit">Ara</button>
         <button class="ghost small" type="button" data-admin-user-reset>Temizle</button>
       </form>
@@ -1393,6 +1425,11 @@ function adminUsersPanel() {
 
 function adminFilteredUsers() {
   const query = adminUserFilters.query.trim().toLocaleLowerCase("tr");
+  const createdValue = (user) => {
+    const value = Date.parse(user.createdAt || user.created_at || "");
+    return Number.isFinite(value) ? value : 0;
+  };
+  const nameValue = (user) => `${user.name || ""} ${user.email || ""}`;
   return state.users.filter((user) => {
     const text = [user.name, user.email, user.university, user.department].join(" ").toLocaleLowerCase("tr");
     return (
@@ -1401,6 +1438,11 @@ function adminFilteredUsers() {
       (!adminUserFilters.department || user.department === adminUserFilters.department) &&
       (!adminUserFilters.role || user.role === adminUserFilters.role)
     );
+  }).sort((a, b) => {
+    if (adminUserFilters.sort === "az") return nameValue(a).localeCompare(nameValue(b), "tr");
+    if (adminUserFilters.sort === "za") return nameValue(b).localeCompare(nameValue(a), "tr");
+    if (adminUserFilters.sort === "old") return createdValue(a) - createdValue(b) || nameValue(a).localeCompare(nameValue(b), "tr");
+    return createdValue(b) - createdValue(a) || nameValue(a).localeCompare(nameValue(b), "tr");
   });
 }
 
@@ -1459,7 +1501,7 @@ function profilePage() {
   `;
 }
 
-function profileHubPage() {
+function profileHubPageLegacyBasic() {
   const user = currentUser();
   if (!user) return authPage();
   const followers = followerUsers(user.id);
@@ -1500,7 +1542,7 @@ function profileHubPage() {
   `;
 }
 
-function publicProfilePage(userId) {
+function publicProfilePageLegacyBasic(userId) {
   const user = state.users.find((item) => item.id === userId);
   if (!user) return `<section class="dashboard">${empty("Profil bulunamadı.")}</section>`;
   const notes = state.notes.filter((note) => note.sellerId === user.id && note.status === "approved");
@@ -1528,7 +1570,7 @@ function publicProfilePage(userId) {
   `;
 }
 
-function profileAvatar(user) {
+function profileAvatarLegacy(user) {
   const initials = user.name.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toLocaleUpperCase("tr");
   return `<div class="profile-avatar" style="--avatar-color:${escapeHtml(user.profileColor || "#5b5ff7")}">${escapeHtml(initials)}</div>`;
 }
@@ -1589,7 +1631,7 @@ function toggleFollow(userId) {
   render();
 }
 
-function profileHubPage() {
+function profileHubPageLegacyCover() {
   const user = currentUser();
   if (!user) return authPage();
   const followers = followerUsers(user.id);
@@ -1616,6 +1658,7 @@ function profileHubPage() {
         </div>
         ${badgeShelf(user)}
       </div>
+      ${avatarModalUserId === user.id ? avatarModal(user) : ""}
       ${badgeModalUserId === user.id ? badgeModal(user) : ""}
       ${profilePanelContent(user, followers, following)}
       ${badgeRoadmapPanel(user)}
@@ -1645,11 +1688,140 @@ function profileDiscoverPanel(users) {
   `;
 }
 
+function profilePanelContentLegacy(user, followers, following) {
+  if (profilePanel === "edit") {
+    return `
+      <form class="panel wide-panel profile-edit-panel" data-action="profile">
+        <div class="section-head"><div><h2>Profili düzenle</h2><p>Profil kartında görünen bilgileri güncelle.</p></div></div>
+        <div class="form-grid">
+          <label>Ad soyad<input name="name" value="${escapeHtml(user.name)}" required /></label>
+          <label>E-posta<input name="email" value="${escapeHtml(user.email)}" required /></label>
+          <label>Üniversite<input name="university" value="${escapeHtml(user.university || "")}" /></label>
+          <label>Bölüm<input name="department" value="${escapeHtml(user.department || "")}" /></label>
+          <label class="full">Profil yazısı<textarea name="bio" rows="3">${escapeHtml(user.bio || "")}</textarea></label>
+        </div>
+        <button class="primary" type="submit">Kaydet</button>
+      </form>
+    `;
+  }
+  if (profilePanel === "followers") {
+    return `<div class="panel profile-list-panel"><div class="section-head"><div><h2>Takipçiler</h2><p>Seni takip eden öğrenciler.</p></div></div>${followers.map(userMiniCard).join("") || empty("Henüz takipçin yok.")}</div>`;
+  }
+  if (profilePanel === "following") {
+    return `<div class="panel profile-list-panel"><div class="section-head"><div><h2>Takip edilenler</h2><p>Takip ettiğin öğrenciler.</p></div></div>${following.map(userMiniCard).join("") || empty("Henüz kimseyi takip etmiyorsun.")}</div>`;
+  }
+  return "";
+}
+
+function publicProfilePageLegacyCover(userId) {
+  const user = state.users.find((item) => item.id === userId);
+  if (!user) return `<section class="dashboard">${empty("Profil bulunamadı.")}</section>`;
+  const notes = state.notes.filter((note) => note.sellerId === user.id && note.status === "approved");
+  const followers = followerUsers(user.id);
+  const following = followingUsers(user.id);
+  return `
+    <section class="dashboard profile-page">
+      <div class="profile-cover panel">
+        <button class="profile-main" data-user-profile="${user.id}">
+          ${profileAvatar(user)}
+          <span>
+            <strong>${escapeHtml(user.name)}</strong>
+            <small>${escapeHtml(user.university || "Üniversite")} · ${escapeHtml(user.department || "Bölüm")}</small>
+          </span>
+        </button>
+        <p>${escapeHtml(user.bio || "")}</p>
+        <div class="profile-actions">
+          <button class="profile-stat-pill" data-profile-panel="followers">${followerCount(user)} takipçi</button>
+          <button class="profile-stat-pill" data-profile-panel="following">${followingCount(user)} takip edilen</button>
+          <span class="profile-stat-pill">${noteCount(user)} not</span>
+          ${followButton(user.id)}
+        </div>
+        ${badgeShelf(user)}
+      </div>
+      ${avatarModalUserId === user.id ? avatarModal(user) : ""}
+      ${avatarModalUserId === user.id ? avatarModal(user) : ""}
+      ${badgeModalUserId === user.id ? badgeModal(user) : ""}
+      ${publicProfilePanelContent(user, notes, followers, following)}
+      <div class="panel" id="public-notes"><h2>Yüklediği notlar</h2>${notes.map(simpleNoteRow).join("") || empty("Henüz yayında notu yok.")}</div>
+    </section>
+  `;
+}
+
+function publicProfilePanelContent(user, notes, followers, following) {
+  if (profilePanel === "followers") {
+    return `<div class="panel profile-list-panel"><div class="section-head"><div><h2>Takipçiler</h2><p>${escapeHtml(user.name)} kişisini takip edenler.</p></div></div>${followers.map(userMiniCard).join("") || empty("Henüz takipçisi yok.")}</div>`;
+  }
+  if (profilePanel === "following") {
+    return `<div class="panel profile-list-panel"><div class="section-head"><div><h2>Takip edilenler</h2><p>${escapeHtml(user.name)} tarafından takip edilenler.</p></div></div>${following.map(userMiniCard).join("") || empty("Henüz kimseyi takip etmiyor.")}</div>`;
+  }
+  return "";
+}
+
+function profileAvatar(user, previewable = false) {
+  const initials = user.name.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toLocaleUpperCase("tr");
+  return `<div class="profile-avatar ${previewable ? "profile-avatar-preview" : ""}" ${previewable ? `data-avatar-view="${user.id}" title="Profil fotoğrafını büyüt"` : ""} style="--avatar-color:${escapeHtml(user.profileColor || "#5b5ff7")}">${user.avatarData ? `<img src="${escapeHtml(user.avatarData)}" alt="" />` : escapeHtml(initials)}</div>`;
+}
+
+function profileHubPage() {
+  const user = currentUser();
+  if (!user) return authPage();
+  const followers = followerUsers(user.id);
+  const following = followingUsers(user.id);
+  const notes = state.notes.filter((note) => note.sellerId === user.id);
+  const discover = discoverUsers(user.id);
+  return `
+    <section class="dashboard profile-page">
+      <div class="profile-cover panel">
+        <div class="profile-main-wrap">
+          <div class="profile-main">
+            ${profileAvatar(user, true)}
+            <span>
+              <strong>${escapeHtml(user.name)}</strong>
+              <small>${escapeHtml(user.university || "Üniversite")} · ${escapeHtml(user.department || "Bölüm")}</small>
+              <span class="profile-inline-stats">
+                <button class="profile-stat-pill" data-profile-panel="followers">${followerCount(user)} takip&ccedil;i</button>
+                <button class="profile-stat-pill" data-profile-panel="following">${followingCount(user)} takip edilen</button>
+                <span class="profile-stat-pill">${noteCount(user)} not</span>
+              </span>
+            </span>
+          </div>
+          <p>${escapeHtml(user.bio || "")}</p>
+          <button class="ghost profile-edit-shortcut" data-profile-panel="edit">Profili d&uuml;zenle</button>
+        </div>
+        <div class="profile-side">
+          ${badgeShelf(user)}
+          <div class="profile-actions">
+            <button class="ghost" data-profile-panel="edit">Profili düzenle</button>
+            <button class="ghost" data-profile-panel="followers">${followerCount(user)} takipçi</button>
+            <button class="ghost" data-profile-panel="following">${followingCount(user)} takip edilen</button>
+            <span class="profile-stat-pill">${noteCount(user)} not</span>
+            <button class="ghost" type="button" data-logout>Çıkış yap</button>
+          </div>
+        </div>
+      </div>
+      ${badgeModalUserId === user.id ? badgeModal(user) : ""}
+      ${profilePanelContent(user, followers, following)}
+      ${badgeRoadmapPanel(user)}
+      <div class="columns">
+        <div class="panel"><h2>Notların</h2>${notes.map(simpleNoteRow).join("") || empty("Henüz not yüklemedin.")}</div>
+        ${profileDiscoverPanel(discover)}
+      </div>
+    </section>
+  `;
+}
+
 function profilePanelContent(user, followers, following) {
   if (profilePanel === "edit") {
     return `
       <form class="panel wide-panel profile-edit-panel" data-action="profile">
         <div class="section-head"><div><h2>Profili düzenle</h2><p>Profil kartında görünen bilgileri güncelle.</p></div></div>
+        <div class="avatar-edit-row">
+          ${profileAvatar(user)}
+          <label class="avatar-file">Profil fotoğrafı
+            <input name="avatar" type="file" accept="image/*" />
+          </label>
+          ${user.avatarData ? `<label class="check avatar-remove"><input name="removeAvatar" type="checkbox" /> Profil fotoğrafını kaldır</label>` : ""}
+        </div>
         <div class="form-grid">
           <label>Ad soyad<input name="name" value="${escapeHtml(user.name)}" required /></label>
           <label>E-posta<input name="email" value="${escapeHtml(user.email)}" required /></label>
@@ -1679,37 +1851,36 @@ function publicProfilePage(userId) {
   return `
     <section class="dashboard profile-page">
       <div class="profile-cover panel">
-        <button class="profile-main" data-user-profile="${user.id}">
-          ${profileAvatar(user)}
-          <span>
-            <strong>${escapeHtml(user.name)}</strong>
-            <small>${escapeHtml(user.university || "Üniversite")} · ${escapeHtml(user.department || "Bölüm")}</small>
-          </span>
-        </button>
-        <p>${escapeHtml(user.bio || "")}</p>
-        <div class="profile-actions">
-          <button class="profile-stat-pill" data-profile-panel="followers">${followerCount(user)} takipçi</button>
-          <button class="profile-stat-pill" data-profile-panel="following">${followingCount(user)} takip edilen</button>
-          <span class="profile-stat-pill">${noteCount(user)} not</span>
-          ${followButton(user.id)}
+        <div class="profile-main-wrap">
+          <div class="profile-main">
+            ${profileAvatar(user, true)}
+            <span>
+              <strong>${escapeHtml(user.name)}</strong>
+              <small>${escapeHtml(user.university || "Üniversite")} · ${escapeHtml(user.department || "Bölüm")}</small>
+              <span class="profile-inline-stats">
+                <button class="profile-stat-pill" data-profile-panel="followers">${followerCount(user)} takip&ccedil;i</button>
+                <button class="profile-stat-pill" data-profile-panel="following">${followingCount(user)} takip edilen</button>
+                <span class="profile-stat-pill">${noteCount(user)} not</span>
+              </span>
+            </span>
+          </div>
+          <p>${escapeHtml(user.bio || "")}</p>
         </div>
-        ${badgeShelf(user)}
+        <div class="profile-side">
+          ${badgeShelf(user)}
+          <div class="profile-actions">
+            <button class="profile-stat-pill" data-profile-panel="followers">${followerCount(user)} takipçi</button>
+            <button class="profile-stat-pill" data-profile-panel="following">${followingCount(user)} takip edilen</button>
+            <span class="profile-stat-pill">${noteCount(user)} not</span>
+            ${followButton(user.id)}
+          </div>
+        </div>
       </div>
       ${badgeModalUserId === user.id ? badgeModal(user) : ""}
       ${publicProfilePanelContent(user, notes, followers, following)}
       <div class="panel" id="public-notes"><h2>Yüklediği notlar</h2>${notes.map(simpleNoteRow).join("") || empty("Henüz yayında notu yok.")}</div>
     </section>
   `;
-}
-
-function publicProfilePanelContent(user, notes, followers, following) {
-  if (profilePanel === "followers") {
-    return `<div class="panel profile-list-panel"><div class="section-head"><div><h2>Takipçiler</h2><p>${escapeHtml(user.name)} kişisini takip edenler.</p></div></div>${followers.map(userMiniCard).join("") || empty("Henüz takipçisi yok.")}</div>`;
-  }
-  if (profilePanel === "following") {
-    return `<div class="panel profile-list-panel"><div class="section-head"><div><h2>Takip edilenler</h2><p>${escapeHtml(user.name)} tarafından takip edilenler.</p></div></div>${following.map(userMiniCard).join("") || empty("Henüz kimseyi takip etmiyor.")}</div>`;
-  }
-  return "";
 }
 
 function userBadges(user) {
@@ -1760,6 +1931,18 @@ function badgeShelf(user) {
 
 function badgePill(badge) {
   return `<span class="badge-pill badge-${badge.id}" tabindex="0" title="${escapeHtml(`${badge.name}: ${badge.description}`)}"><b>${escapeHtml(badge.icon)}</b><em>${escapeHtml(badge.name)}</em></span>`;
+}
+
+function avatarModal(user) {
+  return `
+    <div class="avatar-modal-backdrop" data-avatar-close>
+      <div class="avatar-modal" role="dialog" aria-modal="true" aria-label="Profil fotoğrafı">
+        <button class="ghost small" data-avatar-close>Kapat</button>
+        <div class="avatar-modal-frame">${profileAvatar(user)}</div>
+        <strong>${escapeHtml(user.name)}</strong>
+      </div>
+    </div>
+  `;
 }
 
 function badgeModal(user) {
@@ -1905,7 +2088,8 @@ function bindEvents() {
       query: data.get("query") || "",
       university: data.get("university") || "",
       department: data.get("department") || "",
-      role: data.get("role") || ""
+      role: data.get("role") || "",
+      sort: data.get("sort") || "new"
     };
     render();
   });
@@ -1947,7 +2131,16 @@ function bindEvents() {
     badgeModalUserId = null;
     render();
   });
+  bindClick("[data-avatar-view]", (button) => {
+    avatarModalUserId = button.dataset.avatarView;
+    render();
+  });
+  bindClick("[data-avatar-close]", () => {
+    avatarModalUserId = null;
+    render();
+  });
   document.querySelector(".badge-modal")?.addEventListener("click", (event) => event.stopPropagation());
+  document.querySelector(".avatar-modal")?.addEventListener("click", (event) => event.stopPropagation());
   bindClick("[data-discover-page]", (button) => {
     profileDiscoverPage = Math.max(0, profileDiscoverPage + Number(button.dataset.discoverPage));
     render();
@@ -1965,7 +2158,7 @@ function bindEvents() {
   bindClick("[data-admin-delete-note]", (button) => adminDeleteNote(button.dataset.adminDeleteNote));
   bindClick("[data-admin-delete-user]", (button) => adminDeleteUser(button.dataset.adminDeleteUser));
   bindClick("[data-admin-user-reset]", () => {
-    adminUserFilters = { query: "", university: "", department: "", role: "" };
+    adminUserFilters = { query: "", university: "", department: "", role: "", sort: "new" };
     render();
   });
   bindClick("[data-admin-power-clear]", (button) => {
@@ -2377,9 +2570,30 @@ function readFileAsText(file) {
   });
 }
 
-function login(event) {
+async function hydrateSupabaseState() {
+  if (!window.NotumSupabase?.isConfigured) return;
+  try {
+    state = normalizeState(await window.NotumSupabase.loadState(state));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (error) {
+    console.warn("Supabase load failed", error);
+    alert("Supabase baglantisi kurulamadı. Uygulama yerel demo verisiyle acildi.");
+  }
+}
+
+async function login(event) {
   event.preventDefault();
   const data = new FormData(event.currentTarget);
+  if (window.NotumSupabase?.isConfigured) {
+    try {
+      state = normalizeState(await window.NotumSupabase.login(data.get("email").trim(), data.get("password"), state));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      navigate({ page: "home" });
+    } catch (error) {
+      alert(error.message || "E-posta veya sifre hatali.");
+    }
+    return;
+  }
   const user = state.users.find((item) => item.email === data.get("email") && item.password === data.get("password"));
   if (!user) return alert("E-posta veya şifre hatalı.");
   state.currentUserId = user.id;
@@ -2387,10 +2601,33 @@ function login(event) {
   navigate({ page: "home" });
 }
 
-function register(event) {
+async function register(event) {
   event.preventDefault();
   const data = new FormData(event.currentTarget);
   const email = data.get("email").trim();
+  if (!isStudentEmail(email)) {
+    alert("Kayit icin @ sonrasinda edu uzantili bir ogrenci e-postasi kullanmalisin.");
+    return;
+  }
+  if (window.NotumSupabase?.isConfigured) {
+    try {
+      const nextState = await window.NotumSupabase.register(
+        { name: data.get("name").trim(), email, password: data.get("password") },
+        state
+      );
+      state = normalizeState(nextState);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      if (nextState.pendingEmailVerification) {
+        alert("Hesap olustu. Giris yapmadan once e-postana gelen dogrulama linkine tikla.");
+        navigate({ page: "auth" });
+        return;
+      }
+      navigate({ page: "home" });
+    } catch (error) {
+      alert(error.message || "Hesap olusturulamadi.");
+    }
+    return;
+  }
   if (state.users.some((user) => user.email === email)) return alert("Bu e-posta zaten kayıtlı.");
   const user = {
     id: id("u"),
@@ -2412,6 +2649,10 @@ function register(event) {
 async function upload(event) {
   event.preventDefault();
   const user = currentUser();
+  if (window.NotumSupabase?.isConfigured && !user?.eduVerified) {
+    alert("Not yuklemek icin dogrulanmis .edu.tr ogrenci e-postasi gerekiyor.");
+    return;
+  }
   const data = new FormData(event.currentTarget);
   const file = data.get("noteFile");
   if (!(file instanceof File) || !file.name) {
@@ -2454,7 +2695,7 @@ async function upload(event) {
     selectedPreviewPages: previewNumbers,
     price: Number(data.get("price")),
     previewPages: 5,
-    status: "approved",
+    status: window.NotumSupabase?.isConfigured ? "pending" : "approved",
     sales: 0,
     views: 1,
     createdAt: new Date().toISOString().slice(0, 10),
@@ -2804,6 +3045,10 @@ function openFileDb() {
 }
 
 async function saveUploadedFile(noteId, dataUrl) {
+  if (window.NotumSupabase?.isConfigured) {
+    const saved = await window.NotumSupabase.saveUploadedFile(noteId, dataUrl);
+    if (saved) return;
+  }
   const db = await openFileDb();
   return new Promise((resolve, reject) => {
     const tx = db.transaction("files", "readwrite");
@@ -2820,6 +3065,10 @@ async function saveUploadedFile(noteId, dataUrl) {
 }
 
 async function getUploadedFile(noteId) {
+  if (window.NotumSupabase?.isConfigured) {
+    const remoteFile = await window.NotumSupabase.getUploadedFile(noteId);
+    if (remoteFile) return remoteFile;
+  }
   const db = await openFileDb();
   return new Promise((resolve, reject) => {
     const tx = db.transaction("files", "readonly");
@@ -3330,25 +3579,53 @@ function deleteReport(reportId) {
   render();
 }
 
-function saveProfile(event) {
+function readProfileImage(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
+async function saveProfile(event) {
   event.preventDefault();
   const user = currentUser();
   const data = new FormData(event.currentTarget);
+  const email = data.get("email").trim();
+  if (!canUseProfileEmail(email, user?.role)) {
+    alert("Admin disindaki hesaplarda edu uzantili ogrenci e-postasi kullanilmali.");
+    return;
+  }
   user.name = data.get("name").trim();
-  user.email = data.get("email").trim();
+  user.email = email;
   user.university = data.get("university").trim();
   user.department = data.get("department").trim();
   user.bio = data.get("bio")?.trim() || user.bio;
-  user.eduVerified = user.email.endsWith(".edu.tr");
-  saveState();
+  const avatar = data.get("avatar");
+  if (data.get("removeAvatar")) user.avatarData = "";
+  if (avatar instanceof File && avatar.size) user.avatarData = await readProfileImage(avatar);
+  user.eduVerified = isStudentEmail(user.email) && user.emailVerified;
+  try {
+    await window.NotumSupabase?.saveProfile?.(user);
+  } catch (error) {
+    alert(error.message || "Profil Supabase'e kaydedilemedi.");
+    return;
+  }
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   render();
 }
 
-function logout() {
+async function logout() {
+  if (window.NotumSupabase?.isConfigured) await window.NotumSupabase.logout();
   state.currentUserId = null;
   state.cart = [];
   saveState();
   navigate({ page: "home" });
 }
 
-loadProgramCatalog().finally(render);
+hydrateSupabaseState()
+  .finally(() => {
+    render();
+    loadProgramCatalog().finally(render);
+  });

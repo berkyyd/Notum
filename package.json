@@ -4,6 +4,7 @@
   "private": true,
   "description": "Türkiye'deki üniversite öğrencileri için ders notu alış-satış platformu.",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "import:supabase-catalog": "node scripts/import-supabase-catalog.js"
   }
 }
