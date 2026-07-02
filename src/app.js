@@ -17,7 +17,8 @@ const seed = {
       password: "123456",
       role: "student",
       university: "Boğaziçi Üniversitesi",
-      department: "İşletme",
+      faculty: "İktisadi ve İdari Bilimler Fakültesi",
+      department: "İktisat",
       emailVerified: true,
       eduVerified: true
     },
@@ -28,6 +29,7 @@ const seed = {
       password: "123456",
       role: "student",
       university: "İstanbul Teknik Üniversitesi",
+      faculty: "Bilgisayar ve Bilişim Fakültesi",
       department: "Bilgisayar Mühendisliği",
       emailVerified: true,
       eduVerified: true
@@ -49,8 +51,9 @@ const seed = {
       email: "deniz@ogr.edu.tr",
       password: "123456",
       role: "student",
-      university: "Orta Doğu Teknik Üniversitesi",
-      department: "Makine Mühendisliği",
+      university: "İstanbul Teknik Üniversitesi",
+      faculty: "Bilgisayar ve Bilişim Fakültesi",
+      department: "Bilgisayar Mühendisliği",
       emailVerified: true,
       eduVerified: true
     },
@@ -60,8 +63,9 @@ const seed = {
       email: "ece@ogr.edu.tr",
       password: "123456",
       role: "student",
-      university: "Hacettepe Üniversitesi",
-      department: "Tıp",
+      university: "Boğaziçi Üniversitesi",
+      faculty: "İktisadi ve İdari Bilimler Fakültesi",
+      department: "İktisat",
       emailVerified: true,
       eduVerified: true
     },
@@ -72,6 +76,7 @@ const seed = {
       password: "123456",
       role: "student",
       university: "Ankara Üniversitesi",
+      faculty: "Hukuk Fakültesi",
       department: "Hukuk",
       emailVerified: true,
       eduVerified: true
@@ -83,6 +88,7 @@ const seed = {
       password: "123456",
       role: "student",
       university: "Ege Üniversitesi",
+      faculty: "Fen Fakültesi",
       department: "Kimya",
       emailVerified: true,
       eduVerified: true
@@ -94,7 +100,8 @@ const seed = {
       password: "123456",
       role: "student",
       university: "İstanbul Teknik Üniversitesi",
-      department: "Elektrik Mühendisliği",
+      faculty: "Bilgisayar ve Bilişim Fakültesi",
+      department: "Bilgisayar Mühendisliği",
       emailVerified: true,
       eduVerified: true
     },
@@ -104,8 +111,9 @@ const seed = {
       email: "selin@ogr.edu.tr",
       password: "123456",
       role: "student",
-      university: "Marmara Üniversitesi",
-      department: "Türkçe Öğretmenliği",
+      university: "Ankara Üniversitesi",
+      faculty: "Hukuk Fakültesi",
+      department: "Hukuk",
       emailVerified: true,
       eduVerified: true
     },
@@ -115,8 +123,9 @@ const seed = {
       email: "can@ogr.edu.tr",
       password: "123456",
       role: "student",
-      university: "Dokuz Eylül Üniversitesi",
-      department: "İşletme",
+      university: "Boğaziçi Üniversitesi",
+      faculty: "İktisadi ve İdari Bilimler Fakültesi",
+      department: "İktisat",
       emailVerified: true,
       eduVerified: true
     },
@@ -127,6 +136,7 @@ const seed = {
       password: "123456",
       role: "student",
       university: "Boğaziçi Üniversitesi",
+      faculty: "İktisadi ve İdari Bilimler Fakültesi",
       department: "İktisat",
       emailVerified: true,
       eduVerified: true
@@ -137,8 +147,9 @@ const seed = {
       email: "arda@ogr.edu.tr",
       password: "123456",
       role: "student",
-      university: "Abdullah Gül Üniversitesi",
-      department: "Mimarlık",
+      university: "İstanbul Teknik Üniversitesi",
+      faculty: "Bilgisayar ve Bilişim Fakültesi",
+      department: "Bilgisayar Mühendisliği",
       emailVerified: true,
       eduVerified: true
     },
@@ -148,8 +159,9 @@ const seed = {
       email: "nehir@ogr.edu.tr",
       password: "123456",
       role: "student",
-      university: "İstanbul Üniversitesi",
-      department: "Psikoloji",
+      university: "Ege Üniversitesi",
+      faculty: "Fen Fakültesi",
+      department: "Kimya",
       emailVerified: true,
       eduVerified: true
     },
@@ -159,8 +171,9 @@ const seed = {
       email: "emir@ogr.edu.tr",
       password: "123456",
       role: "student",
-      university: "Gazi Üniversitesi",
-      department: "Endüstri Mühendisliği",
+      university: "Boğaziçi Üniversitesi",
+      faculty: "İktisadi ve İdari Bilimler Fakültesi",
+      department: "İktisat",
       emailVerified: true,
       eduVerified: true
     },
@@ -170,7 +183,8 @@ const seed = {
       email: "yagmur@ogr.edu.tr",
       password: "123456",
       role: "student",
-      university: "Yıldız Teknik Üniversitesi",
+      university: "İstanbul Teknik Üniversitesi",
+      faculty: "Bilgisayar ve Bilişim Fakültesi",
       department: "Bilgisayar Mühendisliği",
       emailVerified: true,
       eduVerified: true
@@ -181,8 +195,9 @@ const seed = {
       email: "bora@ogr.edu.tr",
       password: "123456",
       role: "student",
-      university: "Akdeniz Üniversitesi",
-      department: "Turizm İşletmeciliği",
+      university: "Ankara Üniversitesi",
+      faculty: "Hukuk Fakültesi",
+      department: "Hukuk",
       emailVerified: true,
       eduVerified: true
     },
@@ -192,8 +207,9 @@ const seed = {
       email: "elif@ogr.edu.tr",
       password: "123456",
       role: "student",
-      university: "Çukurova Üniversitesi",
-      department: "Hemşirelik",
+      university: "Ege Üniversitesi",
+      faculty: "Fen Fakültesi",
+      department: "Kimya",
       emailVerified: true,
       eduVerified: true
     },
@@ -203,8 +219,9 @@ const seed = {
       email: "ozan@ogr.edu.tr",
       password: "123456",
       role: "student",
-      university: "Sakarya Üniversitesi",
-      department: "Yazılım Mühendisliği",
+      university: "İstanbul Teknik Üniversitesi",
+      faculty: "Bilgisayar ve Bilişim Fakültesi",
+      department: "Bilgisayar Mühendisliği",
       emailVerified: true,
       eduVerified: true
     }
@@ -473,6 +490,7 @@ const officePreviewCache = new Map();
 let theme = localStorage.getItem(THEME_KEY) || "light";
 let profilePanel = "overview";
 let profileDiscoverPage = 0;
+let marketInsightIndex = { note: 0, book: 0 };
 let adminUserFilters = { query: "", university: "", department: "", role: "", sort: "new" };
 let badgeModalUserId = null;
 let avatarModalUserId = null;
@@ -484,7 +502,7 @@ function routeFromLocation() {
   const parts = window.location.hash.replace(/^#\/?/, "").split("/").filter(Boolean);
   const page = parts[0] || "home";
   const id = parts[1] ? decodeURIComponent(parts[1]) : undefined;
-  const simplePages = new Set(["home", "auth", "upload", "cart", "student", "seller", "admin", "profile"]);
+  const simplePages = new Set(["home", "notes", "books", "auth", "upload", "cart", "student", "seller", "admin", "profile"]);
   if (simplePages.has(page)) return { page };
   if (["detail", "edit", "user"].includes(page) && id) return { page, id };
   return { page: "home" };
@@ -532,6 +550,20 @@ function normalizeState(nextState) {
     sampleSeller.name = "Berkay Demircanlı";
     sampleSeller.email = "berkay@ogr.edu.tr";
   }
+  const demoAcademicById = new Map(seed.users.map((user) => [user.id, {
+    university: user.university || "",
+    faculty: user.faculty || "",
+    department: user.department || ""
+  }]));
+  nextState.users.forEach((user) => {
+    const demoAcademic = demoAcademicById.get(user.id);
+    if (demoAcademic && user.role !== "admin") {
+      user.university = demoAcademic.university;
+      user.faculty = demoAcademic.faculty;
+      user.department = demoAcademic.department;
+      user.bio = `${user.department || "Üniversite"} materyallerini keşfediyor ve paylaşıyor.`;
+    }
+  });
   nextState.users.forEach((user) => {
     user.bio ||= user.role === "admin" ? "Notum moderasyon ekibi" : `${user.department || "Üniversite"} notlarını keşfediyor ve paylaşıyor.`;
     user.profileColor ||= user.id === "u-seller" ? "#30d5c8" : user.id === "u-admin" ? "#ffbe55" : "#ff5f8f";
@@ -539,7 +571,113 @@ function normalizeState(nextState) {
     user.adminStats ||= {};
     user.badgeOverrides ||= [];
   });
+  nextState.notes.forEach((note) => {
+    note.materialType ||= "note";
+  });
+  if (!nextState.notes.some((note) => note.materialType === "book")) {
+    nextState.notes.push(...sampleBooks());
+  }
   return nextState;
+}
+
+function normalizeDemoCatalogFields() {
+  if (!programCatalog.length) return;
+  const demoPlans = [
+    ["u-student", "BOĞAZİÇİ", "İktisat"],
+    ["u-seller", "İSTANBUL TEKNİK", "Bilgisayar Mühendisliği"],
+    ["u-mock-1", "İSTANBUL TEKNİK", "Bilgisayar Mühendisliği"],
+    ["u-mock-2", "BOĞAZİÇİ", "İktisat"],
+    ["u-mock-3", "ANKARA ÜNİVERSİTESİ", "Hukuk"],
+    ["u-mock-4", "EGE ÜNİVERSİTESİ", "Kimya"],
+    ["u-mock-5", "İSTANBUL TEKNİK", "Bilgisayar Mühendisliği"],
+    ["u-mock-6", "ANKARA ÜNİVERSİTESİ", "Hukuk"],
+    ["u-mock-7", "BOĞAZİÇİ", "İktisat"],
+    ["u-mock-8", "BOĞAZİÇİ", "İktisat"],
+    ["u-mock-9", "İSTANBUL TEKNİK", "Bilgisayar Mühendisliği"],
+    ["u-mock-10", "EGE ÜNİVERSİTESİ", "Kimya"],
+    ["u-mock-11", "BOĞAZİÇİ", "İktisat"],
+    ["u-mock-12", "İSTANBUL TEKNİK", "Bilgisayar Mühendisliği"],
+    ["u-mock-13", "ANKARA ÜNİVERSİTESİ", "Hukuk"],
+    ["u-mock-14", "EGE ÜNİVERSİTESİ", "Kimya"],
+    ["u-mock-15", "İSTANBUL TEKNİK", "Bilgisayar Mühendisliği"]
+  ];
+  demoPlans.forEach(([userId, university, department]) => {
+    const user = state.users.find((item) => item.id === userId);
+    const match = catalogMatch(university, department);
+    if (!user || !match) return;
+    applyCatalogFields(user, match);
+    user.bio = `${user.department || "Üniversite"} materyallerini keşfediyor ve paylaşıyor.`;
+  });
+
+  const materialPlans = [
+    ["n-1", "İSTANBUL TEKNİK", "Bilgisayar Mühendisliği"],
+    ["n-2", "BOĞAZİÇİ", "İktisat"],
+    ["n-3", "ANKARA ÜNİVERSİTESİ", "Hukuk"],
+    ["n-4", "EGE ÜNİVERSİTESİ", "Kimya"],
+    ["b-1", "İSTANBUL TEKNİK", "Bilgisayar Mühendisliği"],
+    ["b-2", "BOĞAZİÇİ", "İktisat"],
+    ["b-3", "ANKARA ÜNİVERSİTESİ", "Hukuk"]
+  ];
+  materialPlans.forEach(([noteId, university, department]) => {
+    const note = state.notes.find((item) => item.id === noteId);
+    const match = catalogMatch(university, department);
+    if (note && match) applyCatalogFields(note, match);
+  });
+  repairPlaceholderAcademicFields();
+  saveState();
+}
+
+function repairPlaceholderAcademicFields() {
+  const fallback = catalogMatch("İSTANBUL TEKNİK", "Bilgisayar Mühendisliği") || programCatalog[0];
+  if (!fallback) return;
+  state.users.forEach((user) => {
+    if (user.role === "admin") return;
+    if (hasPlaceholderAcademicValue(user)) {
+      applyCatalogFields(user, fallback);
+      user.bio = `${user.department || "Üniversite"} materyallerini keşfediyor ve paylaşıyor.`;
+    }
+  });
+  state.notes.forEach((note) => {
+    if (hasPlaceholderAcademicValue(note)) applyCatalogFields(note, fallback);
+  });
+}
+
+function hasPlaceholderAcademicValue(item) {
+  const values = [item.university, item.faculty, item.department].map(normalizeCatalogText);
+  return values.some((value) => !value || value === "universite" || value.includes("demo") || value.includes("test"));
+}
+
+function catalogMatch(university, department) {
+  const normalizedUniversity = normalizeCatalogText(university);
+  const normalized = normalizeCatalogText(department);
+  return (
+    programCatalog.find((item) => normalizeCatalogText(item.university).includes(normalizedUniversity) && normalizeCatalogText(item.department) === normalized) ||
+    programCatalog.find((item) => normalizeCatalogText(item.university).includes(normalizedUniversity) && normalizeCatalogText(item.department).includes(normalized)) ||
+    programCatalog.find((item) => normalizeCatalogText(item.university).includes(normalizedUniversity)) ||
+    programCatalog.find((item) => normalizeCatalogText(item.department) === normalized) ||
+    programCatalog.find((item) => normalizeCatalogText(item.department).includes(normalized))
+  );
+}
+
+function normalizeCatalogText(value) {
+  return String(value || "")
+    .toLocaleLowerCase("tr")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replaceAll("ı", "i")
+    .replaceAll("ğ", "g")
+    .replaceAll("ü", "u")
+    .replaceAll("ş", "s")
+    .replaceAll("ö", "o")
+    .replaceAll("ç", "c")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function applyCatalogFields(target, catalogItem) {
+  target.university = catalogItem.university;
+  target.faculty = catalogItem.faculty;
+  target.department = catalogItem.department;
 }
 
 function saveState() {
@@ -605,6 +743,100 @@ function approvedNotes() {
 
 function isSeedNote(note) {
   return /^n-\d+$/.test(note.id || "") && !note.fileStored;
+}
+
+function materialType(note) {
+  return note?.materialType === "book" ? "book" : "note";
+}
+
+function isBook(note) {
+  return materialType(note) === "book";
+}
+
+function materialLabel(note) {
+  return isBook(note) ? "Kitap" : "Not";
+}
+
+function sampleBooks() {
+  return [
+    {
+      id: "b-1",
+      sellerId: "u-seller",
+      materialType: "book",
+      title: "Calculus Early Transcendentals - 2. El",
+      description: "Temiz kullanılmış, kenarlarında küçük notlar olan mühendislik matematiği kitabı.",
+      university: "İstanbul Teknik Üniversitesi",
+      faculty: "Bilgisayar ve Bilişim Fakültesi",
+      department: "Bilgisayar Mühendisliği",
+      course: "Matematik I",
+      instructor: "Ders kitabı",
+      condition: "İyi",
+      fileType: "2. EL",
+      price: 420,
+      status: "approved",
+      sales: 2,
+      views: 16,
+      createdAt: "2026-06-20",
+      aiSummary: "Mühendislik bölümleri için temel calculus kitabı. İkinci el, temiz ve kullanıma hazır.",
+      bookImages: bookPlaceholderImages("Calculus", "#2f6f73", "#f8c36b")
+    },
+    {
+      id: "b-2",
+      sellerId: "u-seller",
+      materialType: "book",
+      title: "Mikro İktisat Çalışma Kitabı",
+      description: "Vize ve final hazırlığı için çözümlü soru kitabı. 2. el, sayfaları eksiksiz.",
+      university: "Boğaziçi Üniversitesi",
+      faculty: "İktisadi ve İdari Bilimler Fakültesi",
+      department: "İktisat",
+      course: "Mikro İktisat",
+      instructor: "Yardımcı kaynak",
+      condition: "Çok iyi",
+      fileType: "2. EL",
+      price: 260,
+      status: "approved",
+      sales: 1,
+      views: 11,
+      createdAt: "2026-06-24",
+      aiSummary: "Çözümlü sorularla mikro iktisat pratiği yapmak isteyen öğrenciler için uygun ikinci el kaynak.",
+      bookImages: bookPlaceholderImages("Mikro", "#6957c2", "#30d5c8")
+    },
+    {
+      id: "b-3",
+      sellerId: "u-student",
+      materialType: "book",
+      title: "Hukuka Giriş Temel Kavramlar",
+      description: "Hukuk fakültesi birinci sınıf için temel kavram kitabı. Kapakta hafif kullanım izi var.",
+      university: "Ankara Üniversitesi",
+      faculty: "Hukuk Fakültesi",
+      department: "Hukuk",
+      course: "Hukuka Giriş",
+      instructor: "Ders kitabı",
+      condition: "Orta",
+      fileType: "2. EL",
+      price: 185,
+      status: "approved",
+      sales: 0,
+      views: 8,
+      createdAt: "2026-06-28",
+      aiSummary: "Hukuka giriş dersi için temel kavramları takip etmeye yarayan uygun fiyatlı ikinci el kitap.",
+      bookImages: bookPlaceholderImages("Hukuk", "#8f4724", "#f4d6b6")
+    }
+  ];
+}
+
+function bookPlaceholderImages(title, primary, secondary) {
+  return [1, 2, 3].map((index) => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="720" height="920" viewBox="0 0 720 920">
+      <rect width="720" height="920" rx="34" fill="${primary}"/>
+      <rect x="74" y="76" width="572" height="768" rx="24" fill="${secondary}" opacity=".92"/>
+      <rect x="116" y="132" width="488" height="70" rx="14" fill="#fff" opacity=".9"/>
+      <rect x="116" y="244" width="488" height="420" rx="20" fill="#fff" opacity=".76"/>
+      <text x="360" y="178" text-anchor="middle" font-family="Arial, sans-serif" font-size="42" font-weight="700" fill="#172033">${title}</text>
+      <text x="360" y="733" text-anchor="middle" font-family="Arial, sans-serif" font-size="32" font-weight="700" fill="#172033">Görsel ${index}</text>
+    </svg>`;
+    return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+  });
 }
 
 function unique(items, key) {
@@ -741,17 +973,20 @@ function render() {
   const user = currentUser();
   const avatarModalUser = avatarModalUserId ? state.users.find((item) => item.id === avatarModalUserId) : null;
   document.documentElement.dataset.theme = theme;
+  const navButton = (page, label) => `<button class="${route.page === page ? "active" : ""}" data-route="${page}">${label}</button>`;
   document.getElementById("app").innerHTML = `
     <header class="topbar">
       <button class="brand" data-route="home" aria-label="Ana sayfa">
         <span class="brand-mark"><img src="src/notum-icon.png" alt="" aria-hidden="true" /></span>
       </button>
       <nav class="nav">
-        <button data-route="home">Notlar</button>
-        <button data-route="upload">Not Yükle</button>
-        <button data-route="student">Panelim</button>
-        <button data-route="seller">Satışlarım</button>
-        ${user?.role === "admin" ? '<button data-route="admin">Admin</button>' : ""}
+        ${navButton("home", "Anasayfa")}
+        ${navButton("notes", "Notlar")}
+        ${navButton("books", "Kitaplar")}
+        ${navButton("upload", "Materyal Yükle")}
+        ${navButton("student", "Panelim")}
+        ${navButton("seller", "Satışlarım")}
+        ${user?.role === "admin" ? navButton("admin", "Admin") : ""}
       </nav>
       <div class="session">
         <button class="theme-toggle" data-theme-toggle aria-label="Tema değiştir">
@@ -773,6 +1008,8 @@ function render() {
 
 function page() {
   if (route.page === "detail") return detailPage(route.id);
+  if (route.page === "notes") return notesPage();
+  if (route.page === "books") return booksPage();
   if (route.page === "auth") return authPage();
   if (route.page === "upload") return uploadPage();
   if (route.page === "cart") return cartPage();
@@ -786,32 +1023,39 @@ function page() {
 }
 
 function homePage() {
-  const notes = filteredNotes();
-  const approved = approvedNotes();
-  const totalSales = approved.reduce((sum, note) => sum + note.sales, 0);
-  const averagePrice = approved.length ? Math.round(approved.reduce((sum, note) => sum + note.price, 0) / approved.length) : 0;
   return `
     <section class="hero">
       <div class="hero-copy">
-        <p class="eyebrow">Dersini seç, notunu bul, zaman kazan</p>
-        <h1>Üniversite notları için canlı ve güvenli pazar yeri.</h1>
-        <p class="hero-lead">En iyi özetleri, çıkmış soruları ve sunum setlerini tek akışta keşfet.</p>
-      </div>
-      <div class="hero-showcase" aria-hidden="true">
-        <div class="showcase-card primary-showcase">
-          ${heroTrendCard(notes[0])}
-        </div>
-        <div class="hero-metrics">
-          <div><strong>${approved.length}</strong><span>aktif not</span></div>
-          <div><strong>${totalSales}</strong><span>satış</span></div>
-          <div><strong>${averagePrice} TL</strong><span>ortalama</span></div>
-        </div>
+        <p class="eyebrow">Öğrencilerden öğrencilere</p>
+        <h1 class="stacked-hero-title"><span>Network</span><span>of</span><span>Trusted</span><span>University</span><span>Materials</span></h1>
       </div>
       ${heroStudentDiscovery()}
     </section>
+    <section class="home-intro">
+      <div>
+        <h2>Paylaş, keşfet, kazan.</h2>
+        <p>Öğrenciler kendi hazırladığı materyalleri veya artık kullanmadığı kitapları yükler; diğer öğrenciler bölüm, ders, hoca ve üniversiteye göre kolayca arar.</p>
+      </div>
+      <div class="home-intro-grid">
+        <article><strong>Güvenli katalog</strong><span>Onay, şikayet ve yorum akışıyla daha temiz bir pazar.</span></article>
+        <article><strong>Akıllı filtreler</strong><span>Not ve kitaplarda aynı arama deneyimi.</span></article>
+        <article><strong>Öğrenci odaklı</strong><span>Satıcı profili, favori, sepet ve satış paneli tek yerde.</span></article>
+      </div>
+    </section>
+  `;
+}
+
+function notesPage() {
+  const notes = filteredNotes("note");
+  const approved = approvedNotes().filter((note) => !isBook(note));
+  return `
+    <section class="market-hero compact-market-hero">
+      <p class="eyebrow">Notlar</p>
+      ${marketInsightCarousel("note", approved)}
+    </section>
     <section class="market-shell">
       <div class="market-toolbar">
-        <form class="search-panel" data-action="search">
+        <form class="search-panel" data-action="search" data-market-type="note">
           <input name="query" value="${escapeHtml(filters.query)}" placeholder="Ders, hoca, bölüm veya not ara" />
           <select name="university">${selectOptions("Üniversite seç", catalogValues("university"), filters.university)}</select>
           <button class="primary" type="submit">Ara</button>
@@ -823,8 +1067,8 @@ function homePage() {
           <button class="ghost small" data-reset>Filtreleri temizle</button>
         </div>
         ${filterSelect("department", "Bölüm", catalogValues("department"))}
-        ${filterSelect("course", "Ders", unique(state.notes, "course"))}
-        ${filterSelect("instructor", "Hoca", unique(state.notes, "instructor"))}
+        ${filterSelect("course", "Ders", unique(state.notes.filter((note) => !isBook(note)), "course"))}
+        ${filterSelect("instructor", "Hoca", unique(state.notes.filter((note) => !isBook(note)), "instructor"))}
         <label>Fiyat aralığı
           <select data-filter="price">${selectOptions("Tüm fiyatlar", ["0-100", "100-150", "150+"], filters.price)}</select>
         </label>
@@ -846,16 +1090,212 @@ function homePage() {
   `;
 }
 
+function booksPage() {
+  const books = filteredNotes("book");
+  const approved = approvedNotes().filter(isBook);
+  return `
+    <section class="market-hero compact-market-hero">
+      <p class="eyebrow">Kitaplar</p>
+      ${marketInsightCarousel("book", approved)}
+    </section>
+    <section class="market-shell">
+      <div class="market-toolbar">
+        <form class="search-panel" data-action="search" data-market-type="book">
+          <input name="query" value="${escapeHtml(filters.query)}" placeholder="Kitap, ders, bölüm veya kaynak ara" />
+          <select name="university">${selectOptions("Üniversite seç", catalogValues("university"), filters.university)}</select>
+          <button class="primary" type="submit">Ara</button>
+        </form>
+      </div>
+      <aside class="filters">
+        <div class="filters-head">
+          <h2>Filtreler</h2>
+          <button class="ghost small" data-reset>Filtreleri temizle</button>
+        </div>
+        ${filterSelect("department", "Bölüm", catalogValues("department"))}
+        ${filterSelect("course", "Ders", unique(state.notes.filter(isBook), "course"))}
+        ${filterSelect("instructor", "Kaynak türü", unique(state.notes.filter(isBook), "instructor"))}
+        <label>Fiyat aralığı
+          <select data-filter="price">${selectOptions("Tüm fiyatlar", ["0-100", "100-150", "150+"], filters.price)}</select>
+        </label>
+        <label>Sıralama
+          <select data-filter="sort">
+            <option value="new" ${filters.sort === "new" ? "selected" : ""}>En yeni kitaplar</option>
+            <option value="best" ${filters.sort === "best" ? "selected" : ""}>En çok satanlar</option>
+            <option value="rated" ${filters.sort === "rated" ? "selected" : ""}>En yüksek puanlılar</option>
+          </select>
+        </label>
+      </aside>
+      <section class="catalog">
+        <div class="section-head">
+          <div><h2>Yayındaki kitaplar</h2><p>${books.length} onaylı kitap listeleniyor</p></div>
+        </div>
+        <div class="note-grid">${books.map(noteCard).join("") || empty("Aradığın kriterlerde kitap bulunamadı.")}</div>
+      </section>
+    </section>
+  `;
+}
+
+function marketInsightCarousel(type, items) {
+  const insights = marketInsights(type, items);
+  const activeIndex = Math.min(marketInsightIndex[type] || 0, insights.length - 1);
+  marketInsightIndex[type] = activeIndex;
+  return `
+    <div class="market-insight" data-market-insight="${type}">
+      <div class="market-insight-window">
+        <div class="market-insight-track" data-market-track style="transform: translateX(-${activeIndex * 100}%);">
+          ${insights
+            .map(
+              (insight, index) => `
+                <article class="market-insight-card ${index === activeIndex ? "active" : ""}" style="--insight-a:${insight.colorA}; --insight-b:${insight.colorB};">
+                  <div class="insight-orbit" aria-hidden="true"><span>${escapeHtml(insight.icon)}</span></div>
+                  <div class="insight-copy">
+                    <span>${escapeHtml(insight.kicker)}</span>
+                    <strong>${escapeHtml(insight.title)}</strong>
+                    <p>${escapeHtml(insight.text)}</p>
+                  </div>
+                  <div class="insight-stat"><b>${escapeHtml(insight.stat)}</b><small>${escapeHtml(insight.statLabel)}</small></div>
+                </article>
+              `
+            )
+            .join("")}
+        </div>
+      </div>
+      <div class="market-dots" aria-label="${type === "book" ? "Kitap" : "Not"} bilgi kartları">
+        ${insights
+          .map(
+            (_, index) => `
+              <button class="${index === activeIndex ? "active" : ""}" data-market-dot="${type}" data-market-index="${index}" aria-label="${index + 1}. bilgi kartı"></button>
+            `
+          )
+          .join("")}
+      </div>
+    </div>
+  `;
+}
+
+function setMarketInsight(type, nextIndex) {
+  const root = document.querySelector(`[data-market-insight="${type}"]`);
+  if (!root) return;
+  const cards = [...root.querySelectorAll(".market-insight-card")];
+  if (!cards.length) return;
+  const index = ((nextIndex % cards.length) + cards.length) % cards.length;
+  marketInsightIndex[type] = index;
+  root.querySelector("[data-market-track]").style.transform = `translateX(-${index * 100}%)`;
+  cards.forEach((card, cardIndex) => card.classList.toggle("active", cardIndex === index));
+  root.querySelectorAll("[data-market-dot]").forEach((dot, dotIndex) => dot.classList.toggle("active", dotIndex === index));
+}
+
+function marketInsights(type, items) {
+  const label = type === "book" ? "kitap" : "not";
+  const plural = type === "book" ? "kitaplar" : "notlar";
+  const latest = [...items].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
+  const topSeller = [...items].sort((a, b) => (b.sales || 0) - (a.sales || 0))[0];
+  const mostReviewed = [...items].sort((a, b) => noteReviews(b.id).length - noteReviews(a.id).length)[0];
+  const mostFavorited = [...items].sort((a, b) => noteFavorites(b.id) - noteFavorites(a.id))[0];
+  const mostViewed = [...items].sort((a, b) => (b.views || 0) - (a.views || 0))[0];
+  const university = topMarketValue(items, "university");
+  const department = topMarketValue(items, "department");
+  const newestText = latest
+    ? `${latest.university} içinden ${latest.title} yayına alındı.`
+    : `Henüz yayında ${label} yok. İlk ilanı sen yükleyebilirsin.`;
+  return [
+    {
+      kicker: "Son yüklenen",
+      icon: "↗",
+      colorA: "#5b5ff7",
+      colorB: "#30d5c8",
+      title: latest?.title || `İlk ${label} bekleniyor`,
+      text: newestText,
+      stat: latest ? formatDate(latest.createdAt).split(" ").slice(0, 2).join(" ") : "Yeni",
+      statLabel: "ilan"
+    },
+    {
+      kicker: "En çok satın alınan",
+      icon: "₺",
+      colorA: "#ff5f8f",
+      colorB: "#ffbe55",
+      title: topSeller?.title || `Satış bekleyen ${plural}`,
+      text: topSeller ? `${topSeller.sales || 0} satışla ${topSeller.university} öğrencilerinin radarında.` : `Satış verisi oluşunca burada en hareketli ${label} görünecek.`,
+      stat: String(topSeller?.sales || 0),
+      statLabel: "satış"
+    },
+    {
+      kicker: "En çok yorum alan",
+      icon: "★",
+      colorA: "#8b5cf6",
+      colorB: "#38bdf8",
+      title: mostReviewed && noteReviews(mostReviewed.id).length ? mostReviewed.title : "Yorum bekleniyor",
+      text: mostReviewed && noteReviews(mostReviewed.id).length
+        ? `${noteReviews(mostReviewed.id).length} yorum ve ${rating(mostReviewed.id)} değerlendirme ile öne çıkıyor.`
+        : `Maalesef şu an yorum yok. İlk yorum geldiğinde en çok konuşulan ${label} burada görünecek.`,
+      stat: String(mostReviewed ? noteReviews(mostReviewed.id).length : 0),
+      statLabel: "yorum"
+    },
+    {
+      kicker: "En çok favorilenen",
+      icon: "♡",
+      colorA: "#ef4444",
+      colorB: "#f97316",
+      title: mostFavorited?.title || "Favori listeleri boş",
+      text: mostFavorited ? `${noteFavorites(mostFavorited.id)} favoriyle öğrencilerin daha sonra bakmak için ayırdığı ${label}.` : `Favorilere eklenen ${plural} burada öne çıkar.`,
+      stat: String(mostFavorited ? noteFavorites(mostFavorited.id) : 0),
+      statLabel: "favori"
+    },
+    {
+      kicker: "En hareketli üniversite",
+      icon: "⌂",
+      colorA: "#0f766e",
+      colorB: "#84cc16",
+      title: university?.name || "Üniversite verisi bekleniyor",
+      text: university ? `${university.count} aktif ${label} ile katalogda en görünür üniversite.` : `Üniversiteye göre ilanlar arttıkça bu alan güncellenir.`,
+      stat: String(university?.count || 0),
+      statLabel: label
+    },
+    {
+      kicker: "En yoğun bölüm",
+      icon: "◇",
+      colorA: "#2563eb",
+      colorB: "#a855f7",
+      title: department?.name || "Bölüm verisi bekleniyor",
+      text: department ? `${department.count} aktif ${label} ile en dolu bölüm vitrini.` : `Bölüm bazlı yoğunluk oluşunca bu kart değişir.`,
+      stat: String(department?.count || 0),
+      statLabel: label
+    },
+    {
+      kicker: "En çok görüntülenen",
+      icon: "◉",
+      colorA: "#db2777",
+      colorB: "#06b6d4",
+      title: mostViewed?.title || "Görüntülenme bekleniyor",
+      text: mostViewed ? `${mostViewed.views || 0} görüntülenmeyle şu an en çok incelenen ${label}.` : `Öğrenciler detay sayfalarını gezdikçe bu alan hareketlenir.`,
+      stat: String(mostViewed?.views || 0),
+      statLabel: "görüntü"
+    }
+  ];
+}
+
+function topMarketValue(items, key) {
+  const counts = items.reduce((map, item) => {
+    const value = item[key];
+    if (!value) return map;
+    map.set(value, (map.get(value) || 0) + 1);
+    return map;
+  }, new Map());
+  return [...counts.entries()]
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, "tr"))[0];
+}
+
 function heroTrendCard(note) {
   if (!note) {
     return `
       <span>Henüz trend yok</span>
-      <strong>İlk notu sen yükle</strong>
-      <small>Onaylı not geldiğinde burada gerçek trend gösterilecek.</small>
+      <strong>İlk materyali sen yükle</strong>
+      <small>Onaylı materyal geldiğinde burada gerçek trend gösterilecek.</small>
     `;
   }
   return `
-    <span>Trend not</span>
+    <span>Öğrencilerden öğrencilere</span>
     <strong>${escapeHtml(note.course)}</strong>
     <small>${money(note.price)} · ${note.sales || 0} satış</small>
   `;
@@ -880,7 +1320,7 @@ function heroStudentCard(user, index, total) {
   const angle = Math.round((360 / Math.max(total, 1)) * index);
   const followers = followerCount(user);
   const following = followingCount(user);
-  const notes = noteCount(user);
+  const materials = materialCount(user);
   return `
     <button class="student-profile-card" data-user-profile="${user.id}" data-student-card="${index}" style="--card-angle:${angle}deg">
       ${profileAvatar(user)}
@@ -889,15 +1329,15 @@ function heroStudentCard(user, index, total) {
       <div class="student-card-stats">
         <span><b>${followers}</b><em>Takipçi</em></span>
         <span><b>${following}</b><em>Takip</em></span>
-        <span><b>${notes}</b><em>Not</em></span>
+        <span><b>${materials}</b><em>Materyal</em></span>
       </div>
     </button>
   `;
 }
 
-function filteredNotes() {
+function filteredNotes(type = "note") {
   const query = filters.query.trim().toLocaleLowerCase("tr");
-  let notes = approvedNotes().filter((note) => {
+  let notes = approvedNotes().filter((note) => materialType(note) === type).filter((note) => {
     const text = [note.title, note.description, note.university, note.department, note.course, note.instructor]
       .join(" ")
       .toLocaleLowerCase("tr");
@@ -935,9 +1375,10 @@ function sortedNoteReviews(noteId) {
 
 function noteCard(note) {
   return `
-    <article class="note-card">
+    <article class="note-card ${isBook(note) ? "book-card" : ""}">
       <button class="favorite ${isFavorite(note.id) ? "active" : ""}" data-favorite="${note.id}" aria-label="Favori">♡</button>
       <div class="file-badge">${note.fileType}</div>
+      ${isBook(note) ? bookThumbs(note) : ""}
       <h3>${escapeHtml(note.title)}</h3>
       <p>${escapeHtml(note.course)} · ${escapeHtml(note.department)}</p>
       <p class="muted">${escapeHtml(note.university)}</p>
@@ -950,9 +1391,14 @@ function noteCard(note) {
   `;
 }
 
+function bookThumbs(note) {
+  const images = (note.bookImages || []).slice(0, 3);
+  return `<div class="book-thumbs">${images.map((image, index) => `<img src="${escapeHtml(image)}" alt="${escapeHtml(note.title)} görsel ${index + 1}" />`).join("")}</div>`;
+}
+
 function detailPage(noteId) {
   const note = state.notes.find((item) => item.id === noteId);
-  if (!note) return empty("Not bulunamadı.");
+  if (!note) return empty("Materyal bulunamadı.");
   const user = currentUser();
   const purchased = user && hasPurchased(user.id, note.id);
   const reviews = noteReviews(note.id);
@@ -962,16 +1408,16 @@ function detailPage(noteId) {
       <div class="preview">
         <div class="preview-head">
           <span class="file-badge">${note.fileType}</span>
-          <div><strong>Önizleme</strong><small>Satıcının seçtiği ${getPreviewPages(note).length} sayfa gösteriliyor</small></div>
+          <div><strong>${isBook(note) ? "Kitap görselleri" : "Önizleme"}</strong><small>${isBook(note) ? "Satıcının yüklediği 3 kitap görseli gösteriliyor" : `Satıcının seçtiği ${getPreviewPages(note).length} sayfa gösteriliyor`}</small></div>
         </div>
-        <div class="preview-pages ${hasOriginalFile(note) && note.fileType === "PDF" ? "pdf-detail-pages" : ""}">${previewPages(note).join("")}</div>
+        <div class="preview-pages ${hasOriginalFile(note) && note.fileType === "PDF" ? "pdf-detail-pages" : ""}">${isBook(note) ? bookGallery(note) : previewPages(note).join("")}</div>
         <div class="copyright">
           <strong>Telif uyarısı</strong>
-          <p>Yükleyen kullanıcı bu materyalin kendi hazırladığı özgün not olduğunu kabul eder. Şüpheli içerikler bildirilebilir.</p>
+          <p>${isBook(note) ? "Yükleyen kullanıcı kitap görsellerinin gerçek ürünü temsil ettiğini ve satış sorumluluğunu kabul eder." : "Yükleyen kullanıcı bu materyalin kendi hazırladığı özgün not olduğunu kabul eder. Şüpheli içerikler bildirilebilir."}</p>
         </div>
       </div>
       <aside class="detail-panel">
-        <button class="back" data-route="home">← Listeye dön</button>
+        <button class="back" data-route="${isBook(note) ? "books" : "notes"}">← Listeye dön</button>
         <h1>${escapeHtml(note.title)}</h1>
         <p>${escapeHtml(note.description)}</p>
         <dl>
@@ -979,7 +1425,8 @@ function detailPage(noteId) {
           <div><dt>Fakülte</dt><dd>${escapeHtml(note.faculty)}</dd></div>
           <div><dt>Bölüm</dt><dd>${escapeHtml(note.department)}</dd></div>
           <div><dt>Ders</dt><dd>${escapeHtml(note.course)}</dd></div>
-          <div><dt>Hoca</dt><dd>${escapeHtml(note.instructor)}</dd></div>
+          <div><dt>${isBook(note) ? "Kaynak türü" : "Hoca"}</dt><dd>${escapeHtml(note.instructor)}</dd></div>
+          ${isBook(note) ? `<div><dt>Durum</dt><dd>${escapeHtml(note.condition || "2. el")}</dd></div>` : ""}
           <div><dt>Satıcı</dt><dd>${escapeHtml(sellerName(note))}</dd></div>
           <div><dt>Yüklenme</dt><dd>${formatDate(note.createdAt)}</dd></div>
         </dl>
@@ -987,10 +1434,12 @@ function detailPage(noteId) {
         ${detailStats(note)}
         <div class="ai-box"><strong>AI kısa açıklama</strong><p>${escapeHtml(note.aiSummary)}</p></div>
         <div class="price-line"><span>${rating(note.id)}</span><strong>${money(note.price)}</strong></div>
-        ${hasOriginalFile(note) ? `<div class="original-file">Orijinal dosya: <strong>${escapeHtml(note.fileName)}</strong></div>` : fallbackFormatSelect(note)}
+        ${isBook(note) ? `<div class="original-file">Satış tipi: <strong>2. el kitap</strong></div>` : hasOriginalFile(note) ? `<div class="original-file">Orijinal dosya: <strong>${escapeHtml(note.fileName)}</strong></div>` : fallbackFormatSelect(note)}
         ${
-          purchased
+          purchased && !isBook(note)
             ? `<button class="primary wide" data-download="${note.id}">${hasOriginalFile(note) ? "Orijinal dosyayı indir" : "Dosyayı indir"}</button>`
+            : purchased && isBook(note)
+              ? `<button class="primary wide" disabled>Satın alındı</button>`
             : `<button class="primary wide" data-add-cart="${note.id}">Sepete ekle</button>`
         }
         <button class="ghost wide" data-report="${note.id}">Şikayet et</button>
@@ -1006,9 +1455,14 @@ function detailPage(noteId) {
         </select>
       </div>
       ${purchased ? reviewForm(note.id) : ""}
-      <div class="reviews">${sortedReviews.map(reviewItem).join("") || empty("Bu not için henüz yorum yok.")}</div>
+      <div class="reviews">${sortedReviews.map(reviewItem).join("") || empty(`Bu ${isBook(note) ? "kitap" : "not"} için henüz yorum yok.`)}</div>
     </section>
   `;
+}
+
+function bookGallery(note) {
+  const images = (note.bookImages || []).slice(0, 3);
+  return `<div class="book-gallery">${images.map((image, index) => `<figure><img src="${escapeHtml(image)}" alt="${escapeHtml(note.title)} görsel ${index + 1}" /><figcaption>Görsel ${index + 1}</figcaption></figure>`).join("")}</div>`;
 }
 
 function detailStats(note) {
@@ -1028,7 +1482,7 @@ function sellerMini(note) {
   const avg = allReviews.length ? (allReviews.reduce((sum, review) => sum + review.rating, 0) / allReviews.length).toFixed(1) : "Yeni";
   return `<div class="seller-mini">
     <strong>${escapeHtml(seller?.name || "Satıcı")}</strong>
-    <span>${sellerNotes.length} not · ${sellerSales} satış · ${avg}${avg === "Yeni" ? "" : " ★"}</span>
+    <span>${sellerNotes.length} materyal · ${sellerSales} satış · ${avg}${avg === "Yeni" ? "" : " ★"}</span>
   </div>`;
 }
 
@@ -1165,44 +1619,63 @@ function uploadPage() {
     <section class="form-page">
       <form class="panel wide-panel upload-studio" data-action="upload">
         <div class="section-head">
-          <div><h1>Not yükle</h1><p>Dosyanı ekle, bilgileri doldur ve seçtiğin önizlemeyle yayına hazırla.</p></div>
+          <div><h1>Materyal yükle</h1><p>Not dosyanı veya 2. el kitabını ekle, bilgileri doldur ve satışa hazırla.</p></div>
           <span class="pill">Akıllı açıklama</span>
         </div>
         <div class="upload-steps">
-          <div><strong>Dosyanı seç</strong><span>PDF, DOCX, PPTX veya TXT dosyanı ekle.</span></div>
+          <div><strong>Türü seç</strong><span>Not veya kitap olarak materyalini belirle.</span></div>
           <div><strong>Bilgileri doldur</strong><span>Ders, hoca, bölüm ve fiyat bilgilerini yaz.</span></div>
-          <div><strong>Önizlemeyi belirle</strong><span>Dosya sayfalarından gösterilecek alanları seç.</span></div>
+          <div><strong>Görünümü hazırla</strong><span>Notta önizleme, kitapta 3 ürün görseli ekle.</span></div>
         </div>
         <div class="form-grid">
+          <label>Materyal türü
+            <select name="materialType" data-material-type>
+              <option value="note">Not</option>
+              <option value="book">Kitap</option>
+            </select>
+          </label>
           <label>Başlık<input name="title" required /></label>
           <label>Fiyat<input name="price" type="number" min="1" value="99" required /></label>
           <label>Üniversite<input name="university" list="university-options" value="${escapeHtml(user.university || "")}" required /></label>
           <label>Fakülte<input name="faculty" list="faculty-options" required /></label>
           <label>Bölüm<input name="department" list="department-options" value="${escapeHtml(user.department || "")}" required /></label>
           <label>Ders adı<input name="course" required /></label>
-          <label>Hoca adı<input name="instructor" required /></label>
-          <label class="full file-drop">Not dosyası
+          <label><span data-instructor-label>Hoca adı</span><input name="instructor" required /></label>
+          <label class="full file-drop" data-note-upload-only>Not dosyası
             <input name="noteFile" type="file" accept=".pdf,.docx,.pptx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation,text/plain" required />
             <span>PDF, DOCX, PPTX veya TXT dosyanı bırak. Önizleme alanı dosyaya göre hazırlanır.</span>
+          </label>
+          <label class="full file-drop material-hidden" data-book-upload-only>Kitap görselleri
+            <input name="bookImages" type="file" accept="image/*" multiple />
+            <span>Kitap yüklemek için tam 3 görsel zorunlu. Kapak, iç sayfa ve genel durum fotoğrafı ekle.</span>
+          </label>
+          <label class="material-hidden" data-book-upload-only>Kitap durumu
+            <select name="condition">
+              <option value="Çok iyi">Çok iyi</option>
+              <option value="İyi" selected>İyi</option>
+              <option value="Orta">Orta</option>
+              <option value="Yıpranmış">Yıpranmış</option>
+            </select>
           </label>
           <label>Toplam sayfa/slayt
             <input name="pageCount" type="number" min="1" max="300" placeholder="Dosyadan hesaplanır" readonly />
           </label>
           <label class="full">Açıklama<textarea name="description" rows="4" required></textarea></label>
           <input name="selectedPreviewPages" type="hidden" value="" />
-          <div class="full preview-picker" data-preview-picker>
+          <div class="full preview-picker" data-preview-picker data-note-upload-only>
             <div class="preview-picker-head">
               <div><strong>Önizleme sayfaları</strong><small>Sayfaların sağ üstündeki kutudan en fazla 5 sayfa seç. Seçim yapmazsan ilk 3 sayfa otomatik kullanılır.</small></div>
               <span data-preview-count>0/5</span>
             </div>
             <div class="source-viewer" data-source-viewer>Dosya seçildiğinde burada sayfalar açılır.</div>
           </div>
+          <div class="full book-image-preview material-hidden" data-book-upload-only data-book-image-preview>3 kitap görseli seçildiğinde burada görünür.</div>
         </div>
         ${catalogDatalists()}
         <div class="form-actions">
-          <label class="check"><input name="copyright" type="checkbox" required /> Bu materyali kendim hazırladım ve telif sorumluluğunu kabul ediyorum.</label>
+          <label class="check"><input name="copyright" type="checkbox" required /> Bu materyali paylaşma/satma sorumluluğunu kabul ediyorum.</label>
           <button class="ghost" type="button" data-ai-fill>AI kısa açıklama oluştur</button>
-          <button class="primary" type="submit">Notu yayınla</button>
+          <button class="primary" type="submit">Materyali yayınla</button>
         </div>
       </form>
     </section>
@@ -1295,7 +1768,7 @@ function cartPage() {
   const total = items.reduce((sum, note) => sum + note.price, 0);
   return `
     <section class="dashboard">
-      <div class="section-head"><div><h1>Sepet</h1><p>Satın almak istediğin notları buradan tamamla.</p></div></div>
+      <div class="section-head"><div><h1>Sepet</h1><p>Satın almak istediğin materyalleri buradan tamamla.</p></div></div>
       <div class="panel">
         ${items.map(cartItem).join("") || empty("Sepet boş.")}
         <div class="total"><span>Toplam</span><strong>${money(total)}</strong></div>
@@ -1323,7 +1796,7 @@ function studentPage() {
         { label: "Yorumlarım", value: myReviews.length, target: "student-reviews" }
       ])}
       <div class="columns">
-        <div class="panel scroll-target" id="student-purchases"><h2>Satın aldığım notlar</h2>${purchased.map(ownedItem).join("") || empty("Henüz satın alma yok.")}</div>
+        <div class="panel scroll-target" id="student-purchases"><h2>Satın aldığım materyaller</h2>${purchased.map(ownedItem).join("") || empty("Henüz satın alma yok.")}</div>
         <div class="panel scroll-target" id="student-favorites"><h2>Favoriler</h2>${favs.map(simpleNoteRow).join("") || empty("Favori listen boş.")}</div>
       </div>
       <div class="panel scroll-target" id="student-reviews"><h2>Yorumlarım</h2>${myReviews.map(studentReviewRow).join("") || empty("Henüz yorum yapmadın.")}</div>
@@ -1332,7 +1805,7 @@ function studentPage() {
 }
 
 function ownedItem(note) {
-  return `<div class="row"><div><strong>${escapeHtml(note.title)}</strong><small>${escapeHtml(note.course)}</small></div><button class="primary small" data-download="${note.id}">İndir</button></div>`;
+  return `<div class="row"><div><strong>${escapeHtml(note.title)}</strong><small>${escapeHtml(note.course)} · ${materialLabel(note)}</small></div>${isBook(note) ? `<button class="ghost small" data-detail="${note.id}">Aç</button>` : `<button class="primary small" data-download="${note.id}">İndir</button>`}</div>`;
 }
 
 function studentReviewRowLegacy(review) {
@@ -1354,10 +1827,10 @@ function sellerPage() {
   const earnings = notes.reduce((sum, note) => sum + note.sales * note.price * 0.8, 0);
   return `
     <section class="dashboard">
-      ${stats([{ label: "Yüklediğim not", value: notes.length }, { label: "Satış sayısı", value: sales }, { label: "Toplam kazanç", value: money(earnings) }])}
+      ${stats([{ label: "Yüklediğim materyal", value: notes.length }, { label: "Satış sayısı", value: sales }, { label: "Toplam kazanç", value: money(earnings) }])}
       <div class="panel scroll-target" id="seller-notes">
-        <div class="section-head"><div><h1>Satışlarım</h1><p>Yüklediğin notlar, satışların ve kazanç özetin.</p></div></div>
-        ${notes.map(sellerRow).join("") || empty("Henüz not yüklemedin.")}
+        <div class="section-head"><div><h1>Satışlarım</h1><p>Yüklediğin materyaller, satışların ve kazanç özetin.</p></div></div>
+        ${notes.map(sellerRow).join("") || empty("Henüz materyal yüklemedin.")}
       </div>
       <div class="panel scroll-target seller-earnings" id="seller-earnings">
         <h2>Kazanç özeti</h2>
@@ -1373,7 +1846,7 @@ function sellerPage() {
 }
 
 function sellerRow(note) {
-  return `<div class="row"><div><strong>${escapeHtml(note.title)}</strong><small>${statusLabel(note.status)} · ${note.sales} satış</small></div><span>${money(note.price)}</span><button class="ghost small" data-edit-note="${note.id}">Düzenle</button><button class="danger small" data-delete-note="${note.id}">Sil</button></div>`;
+  return `<div class="row"><div><strong>${escapeHtml(note.title)}</strong><small>${materialLabel(note)} · ${statusLabel(note.status)} · ${note.sales} satış</small></div><span>${money(note.price)}</span>${isBook(note) ? `<button class="ghost small" data-detail="${note.id}">Detay</button>` : `<button class="ghost small" data-edit-note="${note.id}">Düzenle</button>`}<button class="danger small" data-delete-note="${note.id}">Sil</button></div>`;
 }
 
 function adminPage() {
@@ -1608,7 +2081,17 @@ function followingCount(user) {
 }
 
 function noteCount(user) {
-  return Number.isFinite(Number(user.adminStats?.notes)) ? Number(user.adminStats.notes) : state.notes.filter((note) => note.sellerId === user.id).length;
+  return Number.isFinite(Number(user.adminStats?.notes))
+    ? Number(user.adminStats.notes)
+    : state.notes.filter((note) => note.sellerId === user.id && !isBook(note)).length;
+}
+
+function bookCount(user) {
+  return state.notes.filter((note) => note.sellerId === user.id && isBook(note)).length;
+}
+
+function materialCount(user) {
+  return noteCount(user) + bookCount(user);
 }
 
 function discoverUsers(userId) {
@@ -1767,7 +2250,8 @@ function profileHubPage() {
   if (!user) return authPage();
   const followers = followerUsers(user.id);
   const following = followingUsers(user.id);
-  const notes = state.notes.filter((note) => note.sellerId === user.id);
+  const notes = state.notes.filter((note) => note.sellerId === user.id && !isBook(note));
+  const books = state.notes.filter((note) => note.sellerId === user.id && isBook(note));
   const discover = discoverUsers(user.id);
   return `
     <section class="dashboard profile-page">
@@ -1782,6 +2266,7 @@ function profileHubPage() {
                 <button class="profile-stat-pill" data-profile-panel="followers">${followerCount(user)} takip&ccedil;i</button>
                 <button class="profile-stat-pill" data-profile-panel="following">${followingCount(user)} takip edilen</button>
                 <span class="profile-stat-pill">${noteCount(user)} not</span>
+                <span class="profile-stat-pill">${bookCount(user)} kitap</span>
               </span>
             </span>
           </div>
@@ -1795,6 +2280,7 @@ function profileHubPage() {
             <button class="ghost" data-profile-panel="followers">${followerCount(user)} takipçi</button>
             <button class="ghost" data-profile-panel="following">${followingCount(user)} takip edilen</button>
             <span class="profile-stat-pill">${noteCount(user)} not</span>
+            <span class="profile-stat-pill">${bookCount(user)} kitap</span>
             <button class="ghost" type="button" data-logout>Çıkış yap</button>
           </div>
         </div>
@@ -1804,6 +2290,9 @@ function profileHubPage() {
       ${badgeRoadmapPanel(user)}
       <div class="columns">
         <div class="panel"><h2>Notların</h2>${notes.map(simpleNoteRow).join("") || empty("Henüz not yüklemedin.")}</div>
+        <div class="panel"><h2>Kitapların</h2>${books.map(simpleNoteRow).join("") || empty("Henüz kitap yüklemedin.")}</div>
+      </div>
+      <div class="columns">
         ${profileDiscoverPanel(discover)}
       </div>
     </section>
@@ -1845,7 +2334,8 @@ function profilePanelContent(user, followers, following) {
 function publicProfilePage(userId) {
   const user = state.users.find((item) => item.id === userId);
   if (!user) return `<section class="dashboard">${empty("Profil bulunamadı.")}</section>`;
-  const notes = state.notes.filter((note) => note.sellerId === user.id && note.status === "approved");
+  const notes = state.notes.filter((note) => note.sellerId === user.id && note.status === "approved" && !isBook(note));
+  const books = state.notes.filter((note) => note.sellerId === user.id && note.status === "approved" && isBook(note));
   const followers = followerUsers(user.id);
   const following = followingUsers(user.id);
   return `
@@ -1861,6 +2351,7 @@ function publicProfilePage(userId) {
                 <button class="profile-stat-pill" data-profile-panel="followers">${followerCount(user)} takip&ccedil;i</button>
                 <button class="profile-stat-pill" data-profile-panel="following">${followingCount(user)} takip edilen</button>
                 <span class="profile-stat-pill">${noteCount(user)} not</span>
+                <span class="profile-stat-pill">${bookCount(user)} kitap</span>
               </span>
             </span>
           </div>
@@ -1872,13 +2363,17 @@ function publicProfilePage(userId) {
             <button class="profile-stat-pill" data-profile-panel="followers">${followerCount(user)} takipçi</button>
             <button class="profile-stat-pill" data-profile-panel="following">${followingCount(user)} takip edilen</button>
             <span class="profile-stat-pill">${noteCount(user)} not</span>
+            <span class="profile-stat-pill">${bookCount(user)} kitap</span>
             ${followButton(user.id)}
           </div>
         </div>
       </div>
       ${badgeModalUserId === user.id ? badgeModal(user) : ""}
       ${publicProfilePanelContent(user, notes, followers, following)}
-      <div class="panel" id="public-notes"><h2>Yüklediği notlar</h2>${notes.map(simpleNoteRow).join("") || empty("Henüz yayında notu yok.")}</div>
+      <div class="columns">
+        <div class="panel" id="public-notes"><h2>Yüklediği notlar</h2>${notes.map(simpleNoteRow).join("") || empty("Henüz yayında notu yok.")}</div>
+        <div class="panel"><h2>Yüklediği kitaplar</h2>${books.map(simpleNoteRow).join("") || empty("Henüz yayında kitabı yok.")}</div>
+      </div>
     </section>
   `;
 }
@@ -2006,7 +2501,7 @@ function statTarget(label) {
 }
 
 function simpleNoteRow(note) {
-  return `<div class="row"><div><strong>${escapeHtml(note.title)}</strong><small>${escapeHtml(note.course)}</small></div><button class="ghost small" data-detail="${note.id}">Aç</button></div>`;
+  return `<div class="row"><div><strong>${escapeHtml(note.title)}</strong><small>${escapeHtml(note.course)} · ${materialLabel(note)}</small></div><button class="ghost small" data-detail="${note.id}">Aç</button></div>`;
 }
 
 function filterSelect(key, label, values) {
@@ -2100,9 +2595,11 @@ function bindEvents() {
   document.querySelector('[data-action="register"]')?.addEventListener("submit", register);
   document.querySelector('[data-action="upload"]')?.addEventListener("submit", upload);
   document.querySelector('[data-action="edit-note"]')?.addEventListener("submit", saveEditedNote);
+  bindMaterialUploadMode();
   document.querySelectorAll('[data-action="upload"] input[name="noteFile"], [data-action="edit-note"] input[name="noteFile"]').forEach((input) => {
     input.addEventListener("change", setupPreviewPicker);
   });
+  document.querySelector('[data-action="upload"] input[name="bookImages"]')?.addEventListener("change", previewBookImages);
   document.querySelector('[data-action="profile"]')?.addEventListener("submit", saveProfile);
   bindCatalogInputs();
   document.querySelector('[data-action="review"]')?.addEventListener("submit", addReview);
@@ -2119,6 +2616,9 @@ function bindEvents() {
     openUserProfile(button.dataset.userProfile);
   });
   bindClick("[data-follow]", (button) => toggleFollow(button.dataset.follow));
+  bindClick("[data-market-dot]", (button) => {
+    setMarketInsight(button.dataset.marketDot, Number(button.dataset.marketIndex) || 0);
+  });
   bindClick("[data-profile-panel]", (button) => {
     profilePanel = profilePanel === button.dataset.profilePanel ? "overview" : button.dataset.profilePanel;
     render();
@@ -2186,6 +2686,37 @@ function bindEvents() {
   bindStudentCarousel();
   hydrateRealPdfPreviews();
   hydrateStoredEditPreview();
+}
+
+function bindMaterialUploadMode() {
+  const form = document.querySelector('[data-action="upload"]');
+  if (!form) return;
+  const selector = form.elements.materialType;
+  const sync = () => {
+    const isBookMode = selector.value === "book";
+    form.querySelectorAll("[data-note-upload-only]").forEach((item) => item.classList.toggle("material-hidden", isBookMode));
+    form.querySelectorAll("[data-book-upload-only]").forEach((item) => item.classList.toggle("material-hidden", !isBookMode));
+    form.elements.noteFile.required = !isBookMode;
+    form.elements.bookImages.required = isBookMode;
+    form.elements.pageCount.closest("label")?.classList.toggle("material-hidden", isBookMode);
+    form.querySelector("[data-instructor-label]").textContent = isBookMode ? "Kaynak türü" : "Hoca adı";
+    form.elements.instructor.placeholder = isBookMode ? "Ders kitabı, yardımcı kaynak..." : "";
+  };
+  selector.addEventListener("change", sync);
+  sync();
+}
+
+async function previewBookImages(event) {
+  const input = event.currentTarget;
+  const preview = input.form.querySelector("[data-book-image-preview]");
+  const files = [...(input.files || [])].slice(0, 3);
+  if (!preview) return;
+  if (!files.length) {
+    preview.textContent = "3 kitap görseli seçildiğinde burada görünür.";
+    return;
+  }
+  const images = await Promise.all(files.map(readFileAsDataUrl));
+  preview.innerHTML = `<div class="book-thumbs upload-book-thumbs">${images.map((image, index) => `<img src="${escapeHtml(image)}" alt="Kitap görseli ${index + 1}" />`).join("")}</div><small>${files.length}/3 görsel seçildi</small>`;
 }
 
 function bindClick(selector, handler) {
@@ -2650,10 +3181,15 @@ async function upload(event) {
   event.preventDefault();
   const user = currentUser();
   if (window.NotumSupabase?.isConfigured && !user?.eduVerified) {
-    alert("Not yuklemek icin dogrulanmis .edu.tr ogrenci e-postasi gerekiyor.");
+    alert("Materyal yuklemek icin dogrulanmis .edu.tr ogrenci e-postasi gerekiyor.");
     return;
   }
   const data = new FormData(event.currentTarget);
+  const selectedMaterialType = data.get("materialType") === "book" ? "book" : "note";
+  if (selectedMaterialType === "book") {
+    await uploadBook(data, user);
+    return;
+  }
   const file = data.get("noteFile");
   if (!(file instanceof File) || !file.name) {
     alert("Lütfen PDF, DOCX, PPTX veya TXT formatında bir not dosyası seç.");
@@ -2680,6 +3216,7 @@ async function upload(event) {
   state.notes.unshift({
     id: noteId,
     sellerId: user.id,
+    materialType: "note",
     title,
     description,
     university: data.get("university").trim(),
@@ -2704,6 +3241,46 @@ async function upload(event) {
     preview: extractedPreviewPages.length
       ? previewNumbers.map((pageNumber) => extractedPreviewPages[pageNumber - 1]).filter(Boolean).slice(0, 5)
       : buildFilePreviewPages(previewNumbers, title, description)
+  });
+  saveState();
+  navigate({ page: "detail", id: noteId });
+}
+
+async function uploadBook(data, user) {
+  const imageFiles = data.getAll("bookImages").filter((file) => file instanceof File && file.name);
+  if (imageFiles.length !== 3) {
+    alert("Kitap yüklemek için tam 3 kitap görseli seçmelisin.");
+    return;
+  }
+  if (imageFiles.some((file) => !file.type.startsWith("image/"))) {
+    alert("Kitap görselleri yalnızca resim dosyası olmalı.");
+    return;
+  }
+  const title = data.get("title").trim();
+  const description = data.get("description").trim();
+  const noteId = id("b");
+  const bookImages = await Promise.all(imageFiles.map(readFileAsDataUrl));
+  state.notes.unshift({
+    id: noteId,
+    sellerId: user.id,
+    materialType: "book",
+    title,
+    description,
+    university: data.get("university").trim(),
+    faculty: data.get("faculty").trim(),
+    department: data.get("department").trim(),
+    course: data.get("course").trim(),
+    instructor: data.get("instructor").trim(),
+    condition: data.get("condition") || "İyi",
+    fileType: "2. EL",
+    bookImages,
+    price: Number(data.get("price")),
+    previewPages: 0,
+    status: window.NotumSupabase?.isConfigured ? "pending" : "approved",
+    sales: 0,
+    views: 1,
+    createdAt: new Date().toISOString().slice(0, 10),
+    aiSummary: suggestBookSummary(title, description)
   });
   saveState();
   navigate({ page: "detail", id: noteId });
@@ -2779,13 +3356,19 @@ async function extractStoredPreviewPages(note) {
 
 function fillAiSummary() {
   const form = document.querySelector('[data-action="upload"], [data-action="edit-note"]');
-  const title = form.elements.title.value || "Bu not";
-  form.elements.description.value = suggestSummary(title, form.elements.description.value);
+  const isBookMode = form.elements.materialType?.value === "book";
+  const title = form.elements.title.value || (isBookMode ? "Bu kitap" : "Bu not");
+  form.elements.description.value = isBookMode ? suggestBookSummary(title, form.elements.description.value) : suggestSummary(title, form.elements.description.value);
 }
 
 function suggestSummary(title, text) {
   const base = text?.trim() || title;
   return `${base.slice(0, 120)}${base.length > 120 ? "..." : ""} Sınav öncesi hızlı tekrar ve konu pekiştirme için hazırlanmış kısa açıklama.`;
+}
+
+function suggestBookSummary(title, text) {
+  const base = text?.trim() || title;
+  return `${base.slice(0, 120)}${base.length > 120 ? "..." : ""} Ders için kullanılabilecek ikinci el kitap ilanı. Görseller ürün durumunu temsil eder.`;
 }
 
 function parsePreviewText(value, title, description) {
@@ -2942,6 +3525,10 @@ async function downloadNote(noteId) {
   const user = currentUser();
   const note = state.notes.find((item) => item.id === noteId);
   if (!note) return;
+  if (isBook(note)) {
+    alert("Kitaplar fiziksel satış içindir; indirilebilir dosya bulunmaz.");
+    return;
+  }
   if (hasOriginalFile(note)) {
     const dataUrl = note.fileData || (await getUploadedFile(note.id));
     if (!dataUrl) {
@@ -3627,5 +4214,14 @@ async function logout() {
 hydrateSupabaseState()
   .finally(() => {
     render();
-    loadProgramCatalog().finally(render);
+    loadProgramCatalog().finally(() => {
+      normalizeDemoCatalogFields();
+      render();
+    });
   });
+
+setInterval(() => {
+  if (!["notes", "books"].includes(route.page)) return;
+  const type = route.page === "books" ? "book" : "note";
+  setMarketInsight(type, (marketInsightIndex[type] || 0) + 1);
+}, 8500);
