@@ -1864,7 +1864,7 @@ button.profile-stat-pill:hover {
   grid-row: 1;
   align-self: center;
   width: min(620px, 100%);
-  margin-top: -176px;
+  margin-top: -126px;
   margin-inline: auto;
 }
 
@@ -1872,13 +1872,14 @@ button.profile-stat-pill:hover {
   display: block;
   width: clamp(190px, 21vw, 290px);
   height: auto;
-  margin: 30px auto 2px;
+  margin: 42px auto 12px;
   filter: contrast(1.08) saturate(1.08) drop-shadow(0 14px 28px rgba(0, 0, 0, 0.32));
 }
 
 .student-carousel {
   position: relative;
-  height: 330px;
+  height: 300px;
+  margin-top: 0;
   overflow: visible;
   cursor: grab;
   perspective: 1150px;
@@ -1904,7 +1905,7 @@ button.profile-stat-pill:hover {
 
 .student-profile-card {
   position: absolute;
-  top: 28px;
+  top: 0;
   left: 50%;
   display: grid;
   width: 132px;
@@ -2191,12 +2192,21 @@ textarea,
 }
 
 .nav button:hover,
+.nav button.active,
 .cart:hover,
 .user-chip:hover,
 .theme-toggle:hover {
   color: var(--primary-dark);
-  background: color-mix(in srgb, var(--primary) 14%, transparent);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--primary) 20%, transparent), color-mix(in srgb, var(--accent) 14%, transparent)),
+    color-mix(in srgb, var(--surface) 78%, transparent);
+  box-shadow: 0 10px 28px color-mix(in srgb, var(--primary) 14%, transparent);
   transform: translateY(-1px);
+}
+
+.nav button.active {
+  color: #fff;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
 }
 
 .theme-toggle {
@@ -2275,6 +2285,7 @@ textarea,
   align-self: end;
   max-width: 480px;
   padding-bottom: 76px;
+  animation: none;
 }
 
 .eyebrow {
@@ -2290,6 +2301,38 @@ textarea,
 .hero h1 {
   text-wrap: balance;
   text-shadow: 0 16px 40px rgba(0, 0, 0, 0.2);
+}
+
+.stacked-hero-title {
+  display: grid;
+  gap: 4px;
+}
+
+.stacked-hero-title span {
+  display: block;
+  width: fit-content;
+  color: #fff;
+  text-shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
+}
+
+.stacked-hero-title span:not(:nth-child(2)) {
+  background: linear-gradient(90deg, #fff, #dffbf3 42%, #ffbe55);
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.stacked-hero-title span:nth-child(2) {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.72em;
+  transform: translateX(10px);
+}
+
+.stacked-hero-title span:nth-child(odd) {
+  animation: none;
+}
+
+.stacked-hero-title span:nth-child(even) {
+  animation: none;
 }
 
 .hero-lead {
@@ -2564,9 +2607,506 @@ label {
 .note-card .card-meta,
 .note-card .card-foot,
 .note-card .primary,
+.note-card .book-thumbs,
 .note-card .file-badge {
   position: relative;
   z-index: 1;
+}
+
+.market-hero {
+  position: relative;
+  display: grid;
+  place-items: center;
+  gap: 24px;
+  min-height: 285px;
+  padding: 66px clamp(16px, 4vw, 44px) 42px;
+  overflow: hidden;
+}
+
+.market-hero::before {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background:
+    radial-gradient(circle at 22% 24%, color-mix(in srgb, var(--primary) 18%, transparent), transparent 32%),
+    radial-gradient(circle at 78% 22%, color-mix(in srgb, var(--mint-soft) 36%, transparent), transparent 28%),
+    linear-gradient(135deg, color-mix(in srgb, var(--surface-strong) 86%, transparent), color-mix(in srgb, var(--primary) 9%, var(--bg)));
+  pointer-events: none;
+}
+
+.market-hero::after {
+  position: absolute;
+  right: 8%;
+  bottom: -90px;
+  width: 260px;
+  height: 260px;
+  content: "";
+  background: conic-gradient(from 130deg, rgba(255, 95, 143, 0.32), rgba(91, 95, 247, 0.2), rgba(48, 213, 200, 0.28), rgba(255, 190, 85, 0.24), rgba(255, 95, 143, 0.32));
+  border-radius: 999px;
+  filter: blur(4px);
+  opacity: 0.8;
+  animation: insightGlow 10s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.compact-market-hero h1 {
+  max-width: 760px;
+  margin-bottom: 8px;
+  font-size: clamp(36px, 5vw, 70px);
+}
+
+.compact-market-hero .hero-metrics {
+  min-width: min(420px, 100%);
+}
+
+.market-hero .eyebrow {
+  position: absolute;
+  z-index: 2;
+  top: 26px;
+  left: clamp(16px, 4vw, 44px);
+  color: color-mix(in srgb, var(--primary-dark) 82%, var(--ink));
+  background: color-mix(in srgb, var(--primary) 10%, var(--surface));
+  border-color: color-mix(in srgb, var(--primary) 24%, var(--line));
+}
+
+.market-hero h1 {
+  color: var(--ink);
+}
+
+.market-hero .hero-lead,
+.market-hero .hero-metrics span {
+  color: var(--muted);
+}
+
+.market-hero .hero-metrics strong {
+  color: var(--ink);
+}
+
+:root[data-theme="dark"] .market-hero .eyebrow {
+  color: #f8dfbd;
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+:root[data-theme="dark"] .market-hero h1,
+:root[data-theme="dark"] .market-hero .hero-metrics strong {
+  color: #f7f8ff;
+}
+
+:root[data-theme="dark"] .market-hero .hero-lead,
+:root[data-theme="dark"] .market-hero .hero-metrics span {
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.market-insight {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  justify-items: center;
+  gap: 16px;
+  width: min(920px, 100%);
+}
+
+.market-insight-window {
+  width: 100%;
+  overflow: hidden;
+  border-radius: 18px;
+  box-shadow: 0 26px 80px rgba(45, 52, 111, 0.2);
+}
+
+.market-insight-track {
+  display: flex;
+  width: 100%;
+  transition: transform 760ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+
+.market-insight-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  flex: 0 0 100%;
+  gap: 22px;
+  min-height: 230px;
+  padding: 34px;
+  overflow: hidden;
+  text-align: left;
+  background:
+    radial-gradient(circle at 14% 24%, color-mix(in srgb, var(--insight-a) 28%, transparent), transparent 31%),
+    radial-gradient(circle at 86% 18%, color-mix(in srgb, var(--insight-b) 24%, transparent), transparent 29%),
+    linear-gradient(135deg, color-mix(in srgb, var(--surface) 92%, transparent), color-mix(in srgb, var(--surface-strong) 70%, transparent));
+  border: 1px solid color-mix(in srgb, var(--insight-a) 32%, var(--line));
+  border-radius: 18px;
+  backdrop-filter: blur(16px);
+  opacity: 0.58;
+  transform: scale(0.985);
+  transition: opacity 520ms ease, transform 760ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.market-insight-card::before {
+  position: absolute;
+  inset: auto -18% -52% 42%;
+  height: 190px;
+  content: "";
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--insight-b) 38%, transparent), color-mix(in srgb, var(--insight-a) 32%, transparent));
+  filter: blur(14px);
+  transform: rotate(-8deg);
+  opacity: 0.78;
+}
+
+.market-insight-card::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background: linear-gradient(115deg, transparent 14%, rgba(255, 255, 255, 0.28), transparent 46%);
+  opacity: 0;
+  transform: translateX(-55%);
+}
+
+.market-insight-card.active {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.market-insight-card.active::after {
+  animation: insightShine 3.4s ease-in-out infinite;
+}
+
+.insight-orbit,
+.insight-copy,
+.insight-stat {
+  position: relative;
+  z-index: 1;
+}
+
+.insight-orbit {
+  display: grid;
+  width: clamp(74px, 8vw, 104px);
+  aspect-ratio: 1;
+  place-items: center;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--insight-a) 88%, white 12%), color-mix(in srgb, var(--insight-b) 88%, white 12%));
+  border: 1px solid rgba(255, 255, 255, 0.58);
+  border-radius: 28px;
+  box-shadow: 0 18px 46px color-mix(in srgb, var(--insight-a) 28%, transparent);
+  transform: rotate(-7deg);
+  animation: insightFloat 5.2s ease-in-out infinite;
+}
+
+.insight-orbit span {
+  color: white;
+  font-size: clamp(34px, 4vw, 52px);
+  font-weight: 950;
+  line-height: 1;
+  text-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
+}
+
+.insight-copy {
+  display: grid;
+  gap: 8px;
+}
+
+.insight-copy span {
+  width: fit-content;
+  padding: 6px 9px;
+  color: color-mix(in srgb, var(--primary-dark) 74%, var(--muted));
+  background: color-mix(in srgb, var(--insight-a) 11%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--insight-a) 20%, var(--line));
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.insight-copy strong {
+  color: var(--ink);
+  font-size: clamp(30px, 3.8vw, 50px);
+  line-height: 1.05;
+}
+
+.insight-copy p {
+  max-width: 660px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 17px;
+  font-weight: 750;
+  line-height: 1.45;
+}
+
+.insight-stat {
+  display: grid;
+  min-width: 104px;
+  min-height: 104px;
+  place-items: center;
+  padding: 14px;
+  color: white;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--insight-b) 88%, #111827 12%), color-mix(in srgb, var(--insight-a) 84%, #111827 16%));
+  border-radius: 999px;
+  box-shadow: 0 18px 46px color-mix(in srgb, var(--insight-b) 24%, transparent);
+}
+
+.insight-stat b {
+  max-width: 8ch;
+  overflow: hidden;
+  font-size: clamp(22px, 2.5vw, 34px);
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.insight-stat small {
+  font-size: 12px;
+  font-weight: 900;
+  opacity: 0.86;
+}
+
+.market-dots {
+  display: flex;
+  justify-content: center;
+  gap: 9px;
+  padding: 8px 11px;
+  background: color-mix(in srgb, var(--surface) 76%, transparent);
+  border: 1px solid color-mix(in srgb, var(--primary) 12%, var(--line));
+  border-radius: 999px;
+  box-shadow: 0 12px 34px rgba(45, 52, 111, 0.1);
+  backdrop-filter: blur(12px);
+}
+
+.market-dots button {
+  width: 10px;
+  height: 10px;
+  padding: 0;
+  background: color-mix(in srgb, var(--muted) 42%, transparent);
+  border: 0;
+  border-radius: 999px;
+  transition: width 360ms ease, background 260ms ease, transform 260ms ease;
+}
+
+.market-dots button:hover {
+  transform: translateY(-1px);
+}
+
+.market-dots button.active {
+  width: 30px;
+  background: linear-gradient(90deg, var(--primary), var(--accent));
+}
+
+:root[data-theme="dark"] .market-insight-card {
+  background:
+    radial-gradient(circle at 14% 24%, color-mix(in srgb, var(--insight-a) 30%, transparent), transparent 31%),
+    radial-gradient(circle at 86% 18%, color-mix(in srgb, var(--insight-b) 26%, transparent), transparent 29%),
+    linear-gradient(135deg, rgba(20, 24, 39, 0.9), rgba(33, 41, 66, 0.76));
+  border-color: rgba(235, 242, 255, 0.18);
+  box-shadow: 0 18px 54px rgba(9, 13, 32, 0.24);
+}
+
+:root[data-theme="dark"] .insight-copy span {
+  color: #f8dfbd;
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+:root[data-theme="dark"] .insight-copy strong {
+  color: #f7f8ff;
+}
+
+:root[data-theme="dark"] .insight-copy p {
+  color: rgba(255, 255, 255, 0.78);
+}
+
+:root[data-theme="dark"] .market-dots button {
+  background: rgba(255, 255, 255, 0.34);
+}
+
+:root[data-theme="dark"] .market-dots button.active {
+  background: #f8dfbd;
+}
+
+.home-intro {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.78fr) minmax(0, 1.22fr);
+  gap: 22px;
+  padding: 34px clamp(16px, 4vw, 44px) 46px;
+  background:
+    radial-gradient(circle at 14% 18%, color-mix(in srgb, var(--primary) 12%, transparent), transparent 28%),
+    radial-gradient(circle at 88% 20%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 24%),
+    var(--bg);
+}
+
+.home-intro h2 {
+  margin-bottom: 8px;
+  font-size: clamp(30px, 4vw, 52px);
+}
+
+.home-intro p {
+  max-width: 620px;
+  color: var(--muted);
+  font-weight: 700;
+  line-height: 1.55;
+}
+
+.home-intro-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.home-intro-grid article {
+  position: relative;
+  display: grid;
+  gap: 8px;
+  min-height: 150px;
+  padding: 18px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 20% 16%, color-mix(in srgb, var(--card-a, var(--primary)) 28%, transparent), transparent 34%),
+    linear-gradient(135deg, color-mix(in srgb, var(--surface) 92%, transparent), color-mix(in srgb, var(--surface-strong) 78%, transparent));
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: 0 20px 54px rgba(45, 52, 111, 0.12);
+  transition: transform 360ms ease, box-shadow 360ms ease, border-color 360ms ease;
+}
+
+.home-intro-grid article:nth-child(1) {
+  --card-a: #5b5ff7;
+  --card-b: #30d5c8;
+}
+
+.home-intro-grid article:nth-child(2) {
+  --card-a: #ff5f8f;
+  --card-b: #ffbe55;
+}
+
+.home-intro-grid article:nth-child(3) {
+  --card-a: #0f766e;
+  --card-b: #a855f7;
+}
+
+.home-intro-grid article::before {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  color: white;
+  background: linear-gradient(135deg, var(--card-a), var(--card-b));
+  border-radius: 14px;
+  box-shadow: 0 14px 30px color-mix(in srgb, var(--card-a) 24%, transparent);
+  font-size: 22px;
+  font-weight: 950;
+}
+
+.home-intro-grid article:nth-child(1)::before {
+  content: "✓";
+}
+
+.home-intro-grid article:nth-child(2)::before {
+  content: "⌕";
+}
+
+.home-intro-grid article:nth-child(3)::before {
+  content: "↗";
+}
+
+.home-intro-grid article::after {
+  position: absolute;
+  right: -28px;
+  bottom: -42px;
+  width: 130px;
+  height: 130px;
+  content: "";
+  background: conic-gradient(from 80deg, var(--card-a), var(--card-b), transparent, var(--card-a));
+  border-radius: 999px;
+  filter: blur(1px);
+  opacity: 0.2;
+  animation: insightGlow 9s ease-in-out infinite;
+}
+
+.home-intro-grid article:hover {
+  border-color: color-mix(in srgb, var(--card-a) 40%, var(--line));
+  box-shadow: 0 28px 72px color-mix(in srgb, var(--card-a) 20%, transparent);
+  transform: translateY(-7px) rotate(-0.4deg);
+}
+
+.home-intro-grid strong {
+  color: var(--ink);
+  font-size: 18px;
+}
+
+.home-intro-grid span {
+  color: var(--muted);
+  font-weight: 750;
+  line-height: 1.45;
+}
+
+.book-card {
+  min-height: 430px;
+}
+
+.book-thumbs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  min-height: 112px;
+  margin-top: 28px;
+}
+
+.book-thumbs img {
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  object-fit: cover;
+  background: var(--surface-strong);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.book-gallery {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.book-gallery figure {
+  margin: 0;
+}
+
+.book-gallery img {
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  object-fit: cover;
+  background: var(--surface-strong);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 16px 38px rgba(36, 48, 47, 0.14);
+}
+
+.book-gallery figcaption,
+.book-image-preview small {
+  display: block;
+  margin-top: 7px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.material-hidden {
+  display: none !important;
+}
+
+.book-image-preview {
+  padding: 14px;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--primary) 7%, var(--surface));
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-weight: 800;
+}
+
+.upload-book-thumbs {
+  min-height: 140px;
+  margin-top: 0;
 }
 
 .favorite,
@@ -2695,6 +3235,51 @@ label {
   }
 }
 
+@keyframes insightFloat {
+  0%,
+  100% {
+    transform: rotate(-7deg) translateY(0);
+  }
+  50% {
+    transform: rotate(-2deg) translateY(-8px);
+  }
+}
+
+@keyframes insightGlow {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(-28px, -16px, 0) scale(1.08);
+  }
+}
+
+@keyframes insightShine {
+  0% {
+    opacity: 0;
+    transform: translateX(-60%);
+  }
+  36% {
+    opacity: 0.46;
+  }
+  72%,
+  100% {
+    opacity: 0;
+    transform: translateX(70%);
+  }
+}
+
+@keyframes heroWordFloat {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(8px, -6px, 0);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -2730,6 +3315,9 @@ label {
 
   .search-panel,
   .market-shell,
+  .market-hero,
+  .home-intro,
+  .home-intro-grid,
   .detail-layout,
   .upload-steps,
   .preview-edit-card,
@@ -2738,6 +3326,29 @@ label {
   .admin-user-tools,
   .admin-power-grid {
     grid-template-columns: 1fr;
+  }
+
+  .book-gallery {
+    grid-template-columns: 1fr;
+  }
+
+  .market-insight-card {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    text-align: center;
+  }
+
+  .insight-copy {
+    justify-items: center;
+  }
+
+  .insight-copy p {
+    margin-inline: auto;
+  }
+
+  .insight-stat {
+    min-width: 92px;
+    min-height: 92px;
   }
 
   .profile-cover {
