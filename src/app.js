@@ -487,6 +487,7 @@ let route = routeFromLocation();
 let filters = { query: "", university: "", department: "", course: "", instructor: "", price: "", sort: "new" };
 let reviewSort = "new";
 const officePreviewCache = new Map();
+const storedOfficePreviewCache = new Map();
 let theme = localStorage.getItem(THEME_KEY) || "light";
 let profilePanel = "overview";
 let profileDiscoverPage = 0;
@@ -529,7 +530,6 @@ window.addEventListener("popstate", () => {
   avatarModalUserId = null;
   render();
 });
-
 function loadState() {
   const saved = localStorage.getItem(STORAGE_KEY);
   return normalizeState(saved ? JSON.parse(saved) : structuredClone(seed));
@@ -537,6 +537,17 @@ function loadState() {
 
 function normalizeState(nextState) {
   nextState.follows ||= [{ followerId: "u-student", followingId: "u-seller" }];
+  nextState.purchases ||= [];
+  nextState.sellerSalesSummaries ||= [];
+  nextState.sellerPaymentProfiles ||= [];
+  nextState.sellerPayouts ||= [];
+  nextState.platformSettings ||= {
+    bankName: "Notum Demo Bankası",
+    iban: "TR00 0000 0000 0000 0000 0000 00",
+    accountHolder: "Notum Test Hesabı",
+    payoutWeekday: "Friday",
+    mockPaymentsEnabled: true
+  };
   seed.users
     .filter((seedUser) => seedUser.id.startsWith("u-mock-") && !nextState.users.some((user) => user.id === seedUser.id))
     .forEach((seedUser) => nextState.users.push(structuredClone(seedUser)));
@@ -707,7 +718,7 @@ function canUseProfileEmail(email, role = "student") {
 }
 
 function money(value) {
-  return new Intl.NumberFormat("tr-TR", { style: "currency", currency: "TRY", maximumFractionDigits: 0 }).format(value);
+  return new Intl.NumberFormat("tr-TR", { style: "currency", currency: "TRY", maximumFractionDigits: 2 }).format(value);
 }
 
 function formatDate(value) {
@@ -734,7 +745,52 @@ function rating(noteId) {
 }
 
 function hasPurchased(userId, noteId) {
-  return state.purchases.some((purchase) => purchase.buyerId === userId && purchase.noteId === noteId);
+  return state.purchases.some((purchase) =>
+    purchase.buyerId === userId
+    && purchase.noteId === noteId
+    && ["paid", "mock_paid"].includes(purchase.paymentStatus)
+  );
+}
+
+function confirmedPurchases(noteId) {
+  return state.purchases.filter((purchase) =>
+    purchase.noteId === noteId
+    && ["paid", "mock_paid"].includes(purchase.paymentStatus)
+  );
+}
+
+function noteSalesCount(note) {
+  const summary = state.sellerSalesSummaries.find((item) => item.noteId === note.id);
+  return Math.max(Number(note.sales) || 0, confirmedPurchases(note.id).length, Number(summary?.salesCount || 0));
+}
+
+function noteGrossSales(note) {
+  const summary = state.sellerSalesSummaries.find((item) => item.noteId === note.id);
+  if (summary) return Number(summary.grossSales || 0);
+  return confirmedPurchases(note.id).reduce((sum, purchase) => sum + Number(purchase.amount || 0), 0);
+}
+
+function sellerPayoutAmounts(sellerId) {
+  const completedPurchases = state.purchases.filter((purchase) =>
+    ["paid", "mock_paid"].includes(purchase.paymentStatus)
+    && state.notes.some((note) => note.id === purchase.noteId && note.sellerId === sellerId)
+  );
+  const paidOutIds = new Set(state.sellerPayouts
+    .filter((payout) => payout.sellerId === sellerId)
+    .flatMap((payout) => payout.purchaseIds || []));
+  const duePurchases = completedPurchases.filter((purchase) => purchase.paymentStatus === "paid" && !paidOutIds.has(purchase.id));
+  const expectedDuePurchases = completedPurchases.filter((purchase) => !paidOutIds.has(purchase.id));
+  const summaries = state.sellerSalesSummaries.filter((item) => item.sellerId === sellerId);
+  return {
+    duePurchases,
+    due: summaries.length
+      ? summaries.reduce((sum, item) => sum + Number(item.dueAmount || 0), 0)
+      : expectedDuePurchases.reduce((sum, purchase) => sum + Number(purchase.amount || 0) * 0.8, 0),
+    actualDue: duePurchases.reduce((sum, purchase) => sum + Number(purchase.amount || 0) * 0.8, 0),
+    paid: state.sellerPayouts
+      .filter((payout) => payout.sellerId === sellerId)
+      .reduce((sum, payout) => sum + Number(payout.amount || 0), 0)
+  };
 }
 
 function approvedNotes() {
@@ -923,6 +979,22 @@ function updateDatalist(idValue, values) {
   });
 }
 
+function bindNoteCardEvents(root) {
+  root.querySelectorAll("[data-detail]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const note = state.notes.find((item) => item.id === button.dataset.detail);
+      if (note) {
+        note.views = (note.views || 0) + 1;
+        saveState();
+      }
+      navigate({ page: "detail", id: button.dataset.detail });
+    });
+  });
+  root.querySelectorAll("[data-favorite]").forEach((button) => {
+    button.addEventListener("click", () => toggleFavorite(button.dataset.favorite));
+  });
+}
+
 function bindCatalogInputs() {
   document.querySelectorAll('[data-action="upload"], [data-action="edit-note"], [data-action="profile"]').forEach((form) => {
     const university = form.elements.university;
@@ -1082,7 +1154,7 @@ function notesPage() {
       </aside>
       <section class="catalog">
         <div class="section-head">
-          <div><h2>Yayındaki notlar</h2><p>${notes.length} onaylı materyal listeleniyor</p></div>
+          <div><h2>Yayındaki notlar</h2><p data-note-result-count>${notes.length} onaylı materyal listeleniyor</p></div>
         </div>
         <div class="note-grid">${notes.map(noteCard).join("") || empty("Aradığın kriterlerde not bulunamadı.")}</div>
       </section>
@@ -1297,7 +1369,7 @@ function heroTrendCard(note) {
   return `
     <span>Öğrencilerden öğrencilere</span>
     <strong>${escapeHtml(note.course)}</strong>
-    <small>${money(note.price)} · ${note.sales || 0} satış</small>
+    <small>${money(note.price)} · ${noteSalesCount(note)} satış</small>
   `;
 }
 
@@ -1355,10 +1427,36 @@ function filteredNotes(type = "note") {
       priceOk
     );
   });
-  if (filters.sort === "best") notes = notes.sort((a, b) => b.sales - a.sales);
+  if (filters.sort === "best") notes = notes.sort((a, b) => noteSalesCount(b) - noteSalesCount(a));
   else if (filters.sort === "rated") notes = notes.sort((a, b) => numericRating(b.id) - numericRating(a.id));
   else notes = notes.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   return notes;
+}
+
+function updateNoteSearchResults() {
+  const notes = filteredNotes();
+  const count = document.querySelector("[data-note-result-count]");
+  const grid = document.querySelector(".note-grid");
+  if (count) count.textContent = `${notes.length} onaylı materyal listeleniyor`;
+  if (!grid) return;
+  grid.innerHTML = notes.map(noteCard).join("") || empty("Aradığın kriterlerde not bulunamadı.");
+  bindNoteCardEvents(grid);
+}
+
+function updateAdminUserSearchResults() {
+  const list = document.querySelector(".admin-user-list");
+  if (!list) return;
+  const query = adminUserFilters.query.trim().toLocaleLowerCase("tr");
+  let visibleCount = 0;
+  list.querySelectorAll(".admin-user-block").forEach((block) => {
+    const matches = !query || block.dataset.userSearch.toLocaleLowerCase("tr").includes(query);
+    block.hidden = !matches;
+    if (matches) visibleCount += 1;
+  });
+  const count = document.querySelector("[data-admin-user-count]");
+  if (count) count.textContent = String(visibleCount);
+  const emptyMessage = list.querySelector("[data-admin-search-empty]");
+  if (emptyMessage) emptyMessage.hidden = visibleCount !== 0 || !query;
 }
 
 function numericRating(noteId) {
@@ -1383,7 +1481,7 @@ function noteCard(note) {
       <p>${escapeHtml(note.course)} · ${escapeHtml(note.department)}</p>
       <p class="muted">${escapeHtml(note.university)}</p>
       <p class="muted">Yüklendi: ${formatDate(note.createdAt)}</p>
-      <div class="card-meta"><span>${rating(note.id)}</span><span>${note.sales} satış</span></div>
+      <div class="card-meta"><span>${rating(note.id)}</span><span>${noteSalesCount(note)} satış</span></div>
       <div class="card-meta"><span>${noteFavorites(note.id)} favori</span><span>${noteReviews(note.id).length} yorum</span></div>
       <div class="card-foot"><strong>${money(note.price)}</strong><small>${escapeHtml(sellerName(note))}</small></div>
       <button class="primary wide" data-detail="${note.id}">Detay</button>
@@ -1469,7 +1567,7 @@ function detailStats(note) {
   return `<div class="detail-stats">
     <div><span>Görüntülenme</span><strong>${note.views || 0}</strong></div>
     <div><span>Favori</span><strong>${noteFavorites(note.id)}</strong></div>
-    <div><span>Satış</span><strong>${note.sales}</strong></div>
+    <div><span>Satış</span><strong>${noteSalesCount(note)}</strong></div>
     <div><span>Yorum</span><strong>${noteReviews(note.id).length}</strong></div>
   </div>`;
 }
@@ -1477,7 +1575,7 @@ function detailStats(note) {
 function sellerMini(note) {
   const seller = state.users.find((user) => user.id === note.sellerId);
   const sellerNotes = state.notes.filter((item) => item.sellerId === note.sellerId);
-  const sellerSales = sellerNotes.reduce((sum, item) => sum + item.sales, 0);
+  const sellerSales = sellerNotes.reduce((sum, item) => sum + noteSalesCount(item), 0);
   const allReviews = sellerNotes.flatMap((item) => noteReviews(item.id));
   const avg = allReviews.length ? (allReviews.reduce((sum, review) => sum + review.rating, 0) / allReviews.length).toFixed(1) : "Yeni";
   return `<div class="seller-mini">
@@ -1488,19 +1586,39 @@ function sellerMini(note) {
 
 function previewPages(note) {
   if (hasOriginalFile(note) && note.fileType === "PDF") return realPdfPreviewPages(note);
+  if (hasOriginalFile(note) && ["DOCX", "PPTX", "TXT"].includes(note.fileType)) return realOfficePreviewPages(note);
   const pages = getPreviewPages(note);
   return pages.map(
-    (page, index) => `
+    (page, index) => page.plainText
+      ? `
+      <article class="note-preview-page document-preview-page">
+        <div class="page-number">Sayfa ${note.selectedPreviewPages?.[index] || index + 1}</div>
+        <div class="preview-document-text">${escapeHtml(page.body)}</div>
+        <div class="document-continuation">… Sayfanın devamı var; tamamı satın alınca görüntülenir.</div>
+        <div class="watermark">Notum önizleme</div>
+      </article>
+    `
+      : `
       <article class="note-preview-page">
         <div class="page-number">Sayfa ${index + 1}</div>
         <h2>${escapeHtml(page.title)}</h2>
         <p>${escapeHtml(page.body)}</p>
         <ul>${page.bullets.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
-        <div class="preview-callout">${escapeHtml(page.callout)}</div>
+        ${page.callout ? `<div class="preview-callout">${escapeHtml(page.callout)}</div>` : ""}
         <div class="watermark">Notum önizleme</div>
       </article>
     `
   );
+}
+
+function realOfficePreviewPages(note) {
+  const pages = (note.selectedPreviewPages?.length ? note.selectedPreviewPages : [1, 2, 3]).slice(0, 5);
+  return pages.map((page) => `
+    <article class="note-preview-page document-preview-page" data-office-preview="${note.id}" data-page="${page}">
+      <div class="page-number">Sayfa ${page}</div>
+      <div class="real-pdf-loading">Belge sayfası yükleniyor...</div>
+    </article>
+  `);
 }
 
 function realPdfPreviewPages(note) {
@@ -1595,17 +1713,17 @@ function replyForm(reviewId) {
 function authPage() {
   return `
     <section class="auth-grid">
-      <form class="panel" data-action="login">
+      <form class="panel" data-action="login" autocomplete="on">
         <h1>Giriş yap</h1>
-        <label>E-posta<input name="email" type="email" value="sila@ogr.edu.tr" required /></label>
-        <label>Şifre<input name="password" type="password" value="123456" required /></label>
+        <label>E-posta<input name="email" type="email" autocomplete="username" required /></label>
+        <label>Şifre<input name="password" type="password" autocomplete="current-password" required /></label>
         <button class="primary wide" type="submit">Giriş</button>
       </form>
-      <form class="panel" data-action="register">
+      <form class="panel" data-action="register" autocomplete="off">
         <h1>Kayıt ol</h1>
-        <label>Ad soyad<input name="name" required /></label>
-        <label>E-posta<input name="email" type="email" required /></label>
-        <label>Şifre<input name="password" type="password" minlength="6" required /></label>
+        <label>Ad soyad<input name="name" autocomplete="off" required /></label>
+        <label>E-posta<input name="email" type="email" autocomplete="off" required /></label>
+        <label>Şifre<input name="password" type="password" autocomplete="new-password" minlength="6" required /></label>
         <button class="primary wide" type="submit">Hesap oluştur</button>
       </form>
     </section>
@@ -1766,13 +1884,28 @@ async function hydrateStoredEditPreview() {
 function cartPage() {
   const items = state.cart.map((noteId) => state.notes.find((note) => note.id === noteId)).filter(Boolean);
   const total = items.reduce((sum, note) => sum + note.price, 0);
+  const settings = state.platformSettings || {};
+  const hasBankDetails = settings.bankName && settings.iban && settings.accountHolder;
+  const isMockEnabled = Boolean(settings.mockPaymentsEnabled);
   return `
     <section class="dashboard">
       <div class="section-head"><div><h1>Sepet</h1><p>Satın almak istediğin materyalleri buradan tamamla.</p></div></div>
       <div class="panel">
         ${items.map(cartItem).join("") || empty("Sepet boş.")}
         <div class="total"><span>Toplam</span><strong>${money(total)}</strong></div>
-        <button class="primary wide" data-checkout ${items.length ? "" : "disabled"}>Ödemeyi tamamla</button>
+        ${hasBankDetails ? `
+          <section class="checkout-bank-details">
+            <h2>Havale / EFT bilgileri</h2>
+            <p>Ödeme talimatı oluşturduktan sonra her sipariş için ayrı referans kodu alacaksın. Transfer açıklamasına bu kodu eklemen ve dekontu yüklemen gerekir.</p>
+            <dl class="payment-instructions">
+              <div><dt>Banka</dt><dd>${escapeHtml(settings.bankName)}</dd></div>
+              <div><dt>Hesap sahibi</dt><dd>${escapeHtml(settings.accountHolder)}</dd></div>
+              <div><dt>IBAN</dt><dd class="iban-value">${escapeHtml(settings.iban)}</dd></div>
+            </dl>
+          </section>
+        ` : `<p class="muted">Admin henüz alıcı banka bilgilerini tanımlamadı. Ödeme talimatı oluşturulamaz.</p>`}
+        ${isMockEnabled ? `<label class="check mock-payment-choice"><input type="checkbox" data-mock-payment /> Mock ödeme ile test et <small>Bu test gerçek satış veya banka transferi değildir.</small></label>` : ""}
+        <button class="primary wide" data-checkout ${items.length && (hasBankDetails || isMockEnabled) ? "" : "disabled"}>Ödeme talimatlarını oluştur</button>
       </div>
     </section>
   `;
@@ -1785,7 +1918,12 @@ function cartItem(note) {
 function studentPage() {
   const user = currentUser();
   if (!user) return authPage();
-  const purchased = state.purchases.filter((purchase) => purchase.buyerId === user.id).map((purchase) => state.notes.find((note) => note.id === purchase.noteId)).filter(Boolean);
+  const userPurchases = state.purchases.filter((purchase) => purchase.buyerId === user.id);
+  const purchased = userPurchases
+    .filter((purchase) => ["paid", "mock_paid"].includes(purchase.paymentStatus))
+    .map((purchase) => state.notes.find((note) => note.id === purchase.noteId))
+    .filter(Boolean);
+  const awaiting = userPurchases.filter((purchase) => !["paid", "mock_paid", "refunded"].includes(purchase.paymentStatus));
   const favs = state.favorites.filter((favorite) => favorite.userId === user.id).map((favorite) => state.notes.find((note) => note.id === favorite.noteId)).filter(Boolean);
   const myReviews = state.reviews.filter((review) => review.userId === user.id);
   return `
@@ -1795,12 +1933,110 @@ function studentPage() {
         { label: "Favoriler", value: favs.length, target: "student-favorites" },
         { label: "Yorumlarım", value: myReviews.length, target: "student-reviews" }
       ])}
+      ${awaiting.length ? `      <div class="panel payment-orders"><h2>Ödeme durumları</h2><p class="muted">Havale sonrası referans kodunu açıklama alanına yaz ve dekontu gönder. Sistem dekonttaki referans ve tutarı otomatik tarar; indirme adminin son onayından sonra açılır.</p>${awaiting.map((purchase) => paymentOrderCard(purchase)).join("")}</div>` : ""}
       <div class="columns">
         <div class="panel scroll-target" id="student-purchases"><h2>Satın aldığım materyaller</h2>${purchased.map(ownedItem).join("") || empty("Henüz satın alma yok.")}</div>
         <div class="panel scroll-target" id="student-favorites"><h2>Favoriler</h2>${favs.map(simpleNoteRow).join("") || empty("Favori listen boş.")}</div>
       </div>
       <div class="panel scroll-target" id="student-reviews"><h2>Yorumlarım</h2>${myReviews.map(studentReviewRow).join("") || empty("Henüz yorum yapmadın.")}</div>
     </section>
+  `;
+}
+
+function paymentOrderCard(purchase) {
+  const note = state.notes.find((item) => item.id === purchase.noteId);
+  const settings = state.platformSettings || {};
+  const needsReceipt = ["pending_payment", "rejected"].includes(purchase.paymentStatus);
+  const canRetestMock = purchase.isMock && purchase.paymentStatus === "pending_review";
+  const receiptForm = `
+    <form class="receipt-upload" data-action="receipt" data-purchase="${purchase.id}">
+      <label>Dekont (PDF, JPG, PNG veya WEBP)<input name="receipt" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp" required /></label>
+      <button class="primary small" type="submit">Dekontu kontrol et ve gönder</button>
+      ${purchase.isMock ? `<button class="ghost small" type="button" data-mock-receipt="${purchase.id}" data-mock-result="correct">Doğru örnek dekont</button><button class="ghost small" type="button" data-mock-receipt="${purchase.id}" data-mock-result="wrong">Yanlış örnek dekont</button>` : ""}
+    </form>
+  `;
+  return `
+    <article class="payment-order">
+      <div class="section-head compact-head">
+        <div><h3>${escapeHtml(note?.title || "Not")}</h3><p>${purchase.isMock ? `<span class="pill">MOCK TEST</span> ` : ""}${paymentStatusLabel(purchase.paymentStatus)}</p></div>
+        <strong>${money(purchase.amount)}</strong>
+      </div>
+      <dl class="payment-instructions">
+        <div><dt>Referans kodu</dt><dd><strong>${escapeHtml(purchase.referenceCode || "—")}</strong></dd></div>
+        ${purchase.isMock ? `<div><dt>Test modu</dt><dd>Gerçek havale değildir; doğru/yanlış örneklerle OCR'ı deneyebilirsin.</dd></div>` : `
+          <div><dt>Banka</dt><dd>${escapeHtml(settings.bankName || "Henüz belirtilmedi")}</dd></div>
+          <div><dt>Hesap sahibi</dt><dd>${escapeHtml(settings.accountHolder || "Henüz belirtilmedi")}</dd></div>
+          <div><dt>IBAN</dt><dd class="iban-value">${escapeHtml(settings.iban || "Henüz belirtilmedi")}</dd></div>
+        `}
+      </dl>
+      ${needsReceipt
+        ? `<p class="muted">${purchase.paymentStatus === "rejected" ? "Dekont reddedildi. Bilgileri kontrol edip yeniden gönderebilirsin." : purchase.isMock ? "Bu yalnızca test siparişidir. Gerçek havale yapma. OCR'ı denemek için doğru ve yanlış örnek dekontları kullan." : `Açıklama alanına <strong>${escapeHtml(purchase.referenceCode || "")}</strong> kodunu aynen yaz. Ödeme tutarı ${money(purchase.amount)} olmalı.`}</p>
+          ${receiptForm}`
+        : `${purchase.paymentStatus === "pending_review" ? receiptCheckSummary(purchase) : `<p class="payment-waiting">Ödeme durumu güncellendi.</p>`}`
+      }
+      ${canRetestMock ? `<p class="muted">İki sonucu da aynı siparişte deneyebilirsin; yeni test dekontu öncekinin yerini alır.</p>${receiptForm}` : ""}
+    </article>
+  `;
+}
+
+function paymentStatusLabel(status) {
+  return ({
+    pending_payment: "Ödeme bekleniyor",
+    pending_review: "Dekont inceleniyor",
+    paid: "Ödeme onaylandı",
+    mock_paid: "Mock test onaylandı",
+    rejected: "Dekont reddedildi",
+    refunded: "İade edildi"
+  })[status] || "Bilinmeyen durum";
+}
+
+function receiptCheckLabel(purchase) {
+  const labels = {
+    matched: "Dekont bilgileri eşleşti",
+    mismatch: "Hatalı dekont: kontrol bilgileri eşleşmedi",
+    unreadable: "dekonttan bilgi okunamadı",
+    not_checked: "otomatik kontrol yapılmadı"
+  };
+  if (purchase.receiptCheckStatus === "matched") return `${labels.matched} (referans kodu ve tutar)`;
+  if (purchase.receiptCheckStatus === "mismatch") {
+    const referenceMatched = normalizeReceiptReference(purchase.receiptDetectedReference) === normalizeReceiptReference(purchase.referenceCode);
+    const amountMatched = purchase.receiptDetectedAmount !== null
+      && purchase.receiptDetectedAmount !== undefined
+      && Math.round(Number(purchase.receiptDetectedAmount) * 100) === Math.round(Number(purchase.amount) * 100);
+    return `${labels.mismatch}: ${[
+      referenceMatched ? "" : "referans kodu eşleşmedi",
+      amountMatched ? "" : "tutar eşleşmedi"
+    ].filter(Boolean).join(", ") || "bilgiler okunamadı"}`;
+  }
+  return labels[purchase.receiptCheckStatus] || labels.not_checked;
+}
+
+function receiptCheckSummary(purchase, adminView = false) {
+  const explanation = purchase.receiptDetectedDescription
+    ? escapeHtml(purchase.receiptDetectedDescription)
+    : "Açıklama alanı okunamadı.";
+  const detectedAmount = purchase.receiptDetectedAmount !== null
+    && purchase.receiptDetectedAmount !== undefined
+    && Number.isFinite(Number(purchase.receiptDetectedAmount))
+    ? money(purchase.receiptDetectedAmount)
+    : "Tutar okunamadı.";
+  const recognizedReference = purchase.receiptDetectedReference
+    ? escapeHtml(purchase.receiptDetectedReference)
+    : "Referans kodu okunamadı.";
+  const trustDisclaimer = adminView
+    ? "Bu sonuç kullanıcı tarayıcısındaki OCR ön kontrolüdür; değiştirilebilir ve gerçek havale kanıtı değildir."
+    : "OCR ön kontrolüdür; son karar admin tarafından verilir.";
+  return `
+    <div class="receipt-precheck">
+      <strong>${escapeHtml(receiptCheckLabel(purchase))}</strong>
+      <dl class="payment-instructions">
+        <div><dt>Okunan açıklama</dt><dd>${explanation}</dd></div>
+        <div><dt>Okunan referans</dt><dd>${recognizedReference}</dd></div>
+        <div><dt>Okunan tutar</dt><dd>${detectedAmount}</dd></div>
+        <div><dt>Sipariş tutarı</dt><dd>${money(purchase.amount)}</dd></div>
+      </dl>
+      <small>${trustDisclaimer}</small>
+    </div>
   `;
 }
 
@@ -1823,44 +2059,172 @@ function sellerPage() {
   const user = currentUser();
   if (!user) return authPage();
   const notes = state.notes.filter((note) => note.sellerId === user.id);
-  const sales = notes.reduce((sum, note) => sum + note.sales, 0);
-  const earnings = notes.reduce((sum, note) => sum + note.sales * note.price * 0.8, 0);
+  const sales = notes.reduce((sum, note) => sum + noteSalesCount(note), 0);
+  const earnings = notes.reduce((sum, note) => sum + noteGrossSales(note) * 0.8, 0);
+  const payout = sellerPayoutAmounts(user.id);
+  const paymentProfile = state.sellerPaymentProfiles.find((item) => item.userId === user.id);
+  const payouts = state.sellerPayouts.filter((item) => item.sellerId === user.id);
+  const weekday = state.platformSettings?.payoutWeekday || "Friday";
   return `
     <section class="dashboard">
-      ${stats([{ label: "Yüklediğim materyal", value: notes.length }, { label: "Satış sayısı", value: sales }, { label: "Toplam kazanç", value: money(earnings) }])}
+      ${stats([{ label: "Yüklediğim materyal", value: notes.length }, { label: "Satış sayısı", value: sales }, { label: "Toplam net kazanç", value: money(earnings) }])}
       <div class="panel scroll-target" id="seller-notes">
-        <div class="section-head"><div><h1>Satışlarım</h1><p>Yüklediğin materyaller, satışların ve kazanç özetin.</p></div></div>
+        <div class="section-head">
+          <div><h1>Satışlarım</h1><p>Yüklediğin materyaller, onaylanan satışların ve kazanç özetin.</p></div>
+          <button class="ghost" type="button" data-open-seller-payment>${paymentProfile?.iban ? "Banka / IBAN bilgilerini düzenle" : "Banka / IBAN bilgilerini ekle"}</button>
+        </div>
         ${notes.map(sellerRow).join("") || empty("Henüz materyal yüklemedin.")}
       </div>
       <div class="panel scroll-target seller-earnings" id="seller-earnings">
         <h2>Kazanç özeti</h2>
         <div class="detail-stats">
-          <div><span>Brüt satış</span><strong>${money(notes.reduce((sum, note) => sum + note.sales * note.price, 0))}</strong></div>
-          <div><span>Tahmini payın</span><strong>${money(earnings)}</strong></div>
+          <div><span>Brüt tamamlanan satışlar</span><strong>${money(notes.reduce((sum, note) => sum + noteGrossSales(note), 0))}</strong></div>
+          <div><span>Toplam net payın (mock dahil)</span><strong>${money(earnings)}</strong></div>
+          <div><span>Beklenen ödeme (mock dahil)</span><strong>${money(payout.due)}</strong></div>
+          <div><span>Ödenmiş</span><strong>${money(payout.paid)}</strong></div>
           <div><span>Komisyon</span><strong>%20</strong></div>
-          <div><span>Toplam satış</span><strong>${sales}</strong></div>
+          <div><span>Havale günü</span><strong>Her ${weekdayName(weekday)}</strong></div>
         </div>
+        <p class="muted">Mock onayları beklenen kazanca dahildir; gerçek havale yapılmadığından bankaya ödenecek gerçek tutar değildir. Satıcı ödemeleri haftalık olarak yapılır.</p>
+        <h3>Ödeme hesabı</h3>
+        ${paymentProfile?.iban ? `<p>${escapeHtml(paymentProfile.bankName)} · ${escapeHtml(paymentProfile.accountHolder)} · ${escapeHtml(paymentProfile.iban)}</p>` : `<p class="muted">Ödeme alabilmek için IBAN bilgilerini ekle.</p>`}
+        <h3>Ödeme geçmişi</h3>
+        ${payouts.map((item) => `<div class="row"><span>${formatDate(item.paidAt)}</span><strong>${money(item.amount)}</strong></div>`).join("") || empty("Henüz satıcı ödemesi kaydedilmedi.")}
       </div>
     </section>
   `;
 }
 
 function sellerRow(note) {
-  return `<div class="row"><div><strong>${escapeHtml(note.title)}</strong><small>${materialLabel(note)} · ${statusLabel(note.status)} · ${note.sales} satış</small></div><span>${money(note.price)}</span>${isBook(note) ? `<button class="ghost small" data-detail="${note.id}">Detay</button>` : `<button class="ghost small" data-edit-note="${note.id}">Düzenle</button>`}<button class="danger small" data-delete-note="${note.id}">Sil</button></div>`;
+  return `<div class="row"><div><strong>${escapeHtml(note.title)}</strong><small>${materialLabel(note)} · ${statusLabel(note.status)} · ${noteSalesCount(note)} satış</small></div><span>${money(note.price)}</span>${isBook(note) ? `<button class="ghost small" data-detail="${note.id}">Detay</button>` : `<button class="ghost small" data-edit-note="${note.id}">Düzenle</button>`}<button class="danger small" data-delete-note="${note.id}">Sil</button></div>`;
 }
 
 function adminPage() {
   const user = currentUser();
   if (user?.role !== "admin") return `<section class="dashboard">${empty("Bu alan yalnızca admin hesabına açık.")}</section>`;
+  const pendingNotes = state.notes.filter((note) => note.status === "pending");
+  const approvedNotes = state.notes.filter((note) => note.status === "approved");
+  const rejectedNotes = state.notes.filter((note) => note.status === "rejected");
+  const confirmedSales = state.purchases.filter((purchase) => ["paid", "mock_paid"].includes(purchase.paymentStatus)).length;
   return `
     <section class="dashboard admin">
-      ${stats([{ label: "Kullanıcı", value: state.users.length }, { label: "Onay bekleyen", value: state.notes.filter((n) => n.status === "pending").length }, { label: "Satış", value: state.purchases.length }, { label: "Şikayet", value: state.reports.filter((r) => r.status === "open").length }])}
+      ${stats([{ label: "Kullanıcı", value: state.users.length }, { label: "Onay bekleyen", value: pendingNotes.length }, { label: "Tamamlanan alışveriş", value: confirmedSales }, { label: "Şikayet", value: state.reports.filter((r) => r.status === "open").length }])}
+      ${adminNoteSection("Onay bekleyen notlar", "pending", pendingNotes, "Onay bekleyen not yok.")}
       <div class="columns">
-        <div class="panel"><h2>Not onay sistemi</h2>${state.notes.map(adminNoteRow).join("")}</div>
-        ${adminUsersPanel()}
+        ${adminNoteSection("Onaylanan notlar", "approved", approvedNotes, "Onaylanmış not yok.")}
+        ${adminNoteSection("Reddedilen notlar", "rejected", rejectedNotes, "Reddedilmiş not yok.")}
       </div>
+      ${adminPaymentsPanel()}
+      ${adminSellerPayoutsPanel()}
+      ${adminUsersPanel()}
       <div class="panel"><h2>Şikayet edilen içerikler</h2>${state.reports.map(reportRow).join("") || empty("Açık şikayet yok.")}</div>
     </section>
+  `;
+}
+
+function adminPaymentsPanel() {
+  const waiting = state.purchases.filter((purchase) => purchase.paymentStatus === "pending_review");
+  const reviewed = state.purchases.filter((purchase) => ["paid", "mock_paid", "rejected"].includes(purchase.paymentStatus));
+  const settings = state.platformSettings || {};
+  const weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+  return `
+    <div class="panel admin-payment-panel">
+      <div class="section-head"><div><h2>Dekont kontrolü</h2><p>${waiting.length} dekont incelenmeyi bekliyor. Otomatik ön kontrol; referans ve tutarı tarar, transferin gerçekten gerçekleştiğini doğrulamaz. Erişim için admin onayı gerekir.</p></div></div>
+      <div class="admin-payment-list">${waiting.map(adminPaymentRow).join("") || empty("İncelenmeyi bekleyen dekont yok.")}</div>
+      <details class="admin-payment-history">
+        <summary>İşlem geçmişi (${reviewed.length})</summary>
+        ${reviewed.map(adminPaymentHistoryRow).join("") || empty("Henüz ödeme kararı alınmadı.")}
+      </details>
+      <form class="admin-payment-settings" data-action="platform-settings">
+        <h3>Alıcıların ödeme yapacağı hesap</h3>
+        <div class="form-grid">
+          <label>Banka adı<input name="bankName" value="${escapeHtml(settings.bankName || "")}" required /></label>
+          <label>Hesap sahibi<input name="accountHolder" value="${escapeHtml(settings.accountHolder || "")}" required /></label>
+          <label class="full">IBAN<input name="iban" value="${escapeHtml(settings.iban || "")}" autocapitalize="characters" required /></label>
+          <label>Haftalık satıcı ödeme günü
+            <select name="payoutWeekday">${weekdays.map((day) => `<option value="${day}" ${settings.payoutWeekday === day ? "selected" : ""}>${weekdayName(day)}</option>`).join("")}</select>
+          </label>
+          <label class="check mock-setting"><input name="mockPaymentsEnabled" type="checkbox" ${settings.mockPaymentsEnabled ? "checked" : ""} /> Mock ödemeleri test için etkinleştir</label>
+        </div>
+        <p class="muted">Mock siparişler “MOCK” etiketi taşır ve tahmini satıcı kazancında görünür; gerçek havale değildir, banka ödemesi olarak kaydedilemez. Satıcı havaleleri uygulama tarafından otomatik yapılmaz.</p>
+        <button class="primary" type="submit">Ödeme ayarlarını kaydet</button>
+      </form>
+    </div>
+  `;
+}
+
+function adminPaymentRow(purchase) {
+  const note = state.notes.find((item) => item.id === purchase.noteId);
+  const buyer = state.users.find((item) => item.id === purchase.buyerId);
+  return `
+    <article class="admin-payment-row">
+      <div class="section-head compact-head">
+        <div><h3>${escapeHtml(note?.title || "Not bulunamadı")}</h3><p>${escapeHtml(buyer?.name || "Alıcı")} · ${escapeHtml(buyer?.email || "")} · ${purchase.isMock ? `<span class="pill">MOCK TEST</span>` : "Gerçek havale"}</p></div>
+        <strong>${money(purchase.amount)}</strong>
+      </div>
+      <dl class="payment-instructions">
+        <div><dt>Referans</dt><dd><strong>${escapeHtml(purchase.referenceCode || "—")}</strong></dd></div>
+        <div><dt>Satıcı</dt><dd>${escapeHtml(note ? sellerName(note) : "Satıcı bulunamadı")}</dd></div>
+        <div><dt>Oluşturuldu</dt><dd>${formatDate(purchase.createdAt)}</dd></div>
+      </dl>
+      ${receiptCheckSummary(purchase, true)}
+      <div class="admin-payment-actions">
+        <button class="ghost small" type="button" data-view-receipt="${purchase.id}">Dekontu görüntüle</button>
+        <button class="primary small" type="button" data-approve-payment="${purchase.id}">${purchase.isMock ? "Mock olarak onayla" : "Ödemeyi onayla"}</button>
+        <button class="danger small" type="button" data-reject-payment="${purchase.id}">Reddet</button>
+      </div>
+    </article>
+  `;
+}
+
+function adminPaymentHistoryRow(purchase) {
+  const note = state.notes.find((item) => item.id === purchase.noteId);
+  const buyer = state.users.find((item) => item.id === purchase.buyerId);
+  return `<div class="row"><div><strong>${escapeHtml(note?.title || "Not")} ${purchase.isMock ? `<span class="pill">MOCK</span>` : ""}</strong><small>${escapeHtml(buyer?.email || "")} · ${escapeHtml(purchase.referenceCode || "")} · ${paymentStatusLabel(purchase.paymentStatus)}</small></div><span>${money(purchase.amount)}</span></div>`;
+}
+
+function adminSellerPayoutsPanel() {
+  const sellers = state.users.filter((user) => user.role !== "admin").map((user) => ({
+    user,
+    ...sellerPayoutAmounts(user.id),
+    profile: state.sellerPaymentProfiles.find((item) => item.userId === user.id),
+    completedSales: state.notes
+      .filter((note) => note.sellerId === user.id)
+      .reduce((sum, note) => sum + noteSalesCount(note), 0)
+  })).filter((item) => item.completedSales || item.duePurchases.length || item.paid > 0);
+  return `
+    <div class="panel admin-payout-panel">
+      <div class="section-head"><div><h2>Satıcı ödemeleri</h2><p>Her satışta %20 komisyon düşülür. “Ödeme yapıldı” yalnız banka havalesini tamamladıktan sonra işaretle.</p></div></div>
+      ${sellers.map(({ user, duePurchases, due, actualDue, paid, profile, completedSales }) => `
+        <article class="admin-payout-row">
+          <div><strong>${escapeHtml(user.name)}</strong><small>${escapeHtml(user.email)} · ${completedSales} tamamlanan alışveriş (mock testler dahil) · Ödeme günü: ${weekdayName(state.platformSettings?.payoutWeekday || "Friday")}</small></div>
+          <div class="admin-payout-bank">${profile?.iban ? `${escapeHtml(profile.bankName)} · ${escapeHtml(profile.accountHolder)} · ${escapeHtml(profile.iban)}` : "Satıcı ödeme bilgilerini henüz eklemedi."}</div>
+          <div class="admin-payout-numbers"><span>Beklenen ödeme (mock dahil): <strong>${money(due)}</strong></span><span>Gerçek havale tutarı: <strong>${money(actualDue)}</strong></span><span>Ödenmiş: <strong>${money(paid)}</strong></span></div>
+          <button class="primary small" type="button" data-record-payout="${user.id}" ${duePurchases.length && actualDue > 0 && profile?.iban ? "" : "disabled"}>Gerçek havaleyi kaydet</button>
+        </article>
+      `).join("") || empty("Onaylanmış satıcı kazancı bulunmuyor.")}
+    </div>
+  `;
+}
+
+function weekdayName(day) {
+  return ({
+    Monday: "Pazartesi",
+    Tuesday: "Salı",
+    Wednesday: "Çarşamba",
+    Thursday: "Perşembe",
+    Friday: "Cuma",
+    Saturday: "Cumartesi",
+    Sunday: "Pazar"
+  })[day] || "Cuma";
+}
+
+function adminNoteSection(title, status, notes, emptyMessage) {
+  return `
+    <div class="panel admin-note-section" data-note-drop="${status}">
+      <h2>${title} <span class="admin-note-count">${notes.length}</span></h2>
+      <div class="admin-note-list">${notes.map(adminNoteRow).join("") || empty(emptyMessage)}</div>
+    </div>
   `;
 }
 
@@ -1869,7 +2233,7 @@ function adminUsersPanel() {
   return `
     <div class="panel admin-users-panel">
       <div class="section-head compact-head">
-        <div><h2>Kullanıcılar</h2><p>${users.length} kullanıcı listeleniyor</p></div>
+        <div><h2>Kullanıcılar</h2><p><span data-admin-user-count>${users.length}</span> kullanıcı listeleniyor</p></div>
         <button class="danger small" type="button" data-admin-bulk-delete>Seçilenleri sil</button>
       </div>
       <form class="admin-user-tools" data-action="admin-user-filter">
@@ -1891,7 +2255,10 @@ function adminUsersPanel() {
         <button class="ghost small" type="button" data-admin-user-reset>Temizle</button>
       </form>
       <label class="check admin-select-all"><input type="checkbox" data-admin-select-all /> Listedekileri seç</label>
-      <div class="panel-scroll admin-user-list">${users.map(userRow).join("") || empty("Bu filtrelerde kullanıcı bulunamadı.")}</div>
+      <div class="panel-scroll admin-user-list">
+        ${users.map(userRow).join("") || empty("Bu filtrelerde kullanıcı bulunamadı.")}
+        <div class="empty admin-search-empty" data-admin-search-empty hidden>Bu aramada kullanıcı bulunamadı.</div>
+      </div>
     </div>
   `;
 }
@@ -1920,12 +2287,17 @@ function adminFilteredUsers() {
 }
 
 function adminNoteRow(note) {
-  return `<div class="row"><div><strong>${escapeHtml(note.title)}</strong><small>${escapeHtml(sellerName(note))} · ${statusLabel(note.status)}</small></div><button class="primary small" data-approve="${note.id}">Onayla</button><button class="danger small" data-reject="${note.id}">Reddet</button><button class="danger small" data-admin-delete-note="${note.id}">Sil</button></div>`;
+  const statusActions = note.status === "pending"
+    ? `<button class="primary small" data-approve="${note.id}">Onayla</button><button class="danger small" data-reject="${note.id}">Reddet</button>`
+    : note.status === "approved"
+      ? `<button class="danger small" data-reject="${note.id}">Reddet</button>`
+      : `<button class="primary small" data-approve="${note.id}">Onayla</button>`;
+  return `<div class="row admin-note-row" draggable="true" data-admin-note="${note.id}"><div><strong>${escapeHtml(note.title)}</strong><small>${escapeHtml(sellerName(note))} · ${statusLabel(note.status)} · Sürükleyerek durumu değiştir</small></div>${statusActions}<button class="danger small" data-admin-delete-note="${note.id}">Sil</button></div>`;
 }
 
 function userRow(user) {
   const isCurrent = user.id === currentUser()?.id;
-  return `<div class="admin-user-block">
+  return `<div class="admin-user-block" data-user-search="${escapeHtml([user.name, user.email, user.university, user.department].join(" "))}">
     <div class="row admin-user-row"><label class="admin-user-pick"><input type="checkbox" data-admin-user-select="${user.id}" ${isCurrent ? "disabled" : ""} /></label><div><strong>${escapeHtml(user.name)}</strong><small>${roleName(user.role)} · ${escapeHtml(user.email)} · ${escapeHtml(user.university || "Üniversite yok")} · ${escapeHtml(user.department || "Bölüm yok")}</small></div><button class="danger small" data-admin-delete-user="${user.id}" ${isCurrent ? "disabled" : ""}>Sil</button></div>
     <details class="admin-power">
       <summary>Yetkiler ve rozetler</summary>
@@ -2134,6 +2506,7 @@ function profileHubPageLegacyCover() {
         <p>${escapeHtml(user.bio || "")}</p>
         <div class="profile-actions">
           <button class="ghost" data-profile-panel="edit">Profili düzenle</button>
+          <button class="ghost" data-profile-panel="payment">Ödeme bilgileri</button>
           <button class="ghost" data-profile-panel="followers">${followerCount(user)} takipçi</button>
           <button class="ghost" data-profile-panel="following">${followingCount(user)} takip edilen</button>
           <span class="profile-stat-pill">${noteCount(user)} not</span>
@@ -2183,7 +2556,10 @@ function profilePanelContentLegacy(user, followers, following) {
           <label>Bölüm<input name="department" value="${escapeHtml(user.department || "")}" /></label>
           <label class="full">Profil yazısı<textarea name="bio" rows="3">${escapeHtml(user.bio || "")}</textarea></label>
         </div>
-        <button class="primary" type="submit">Kaydet</button>
+        <div class="profile-edit-actions">
+          <button class="primary" type="submit">Kaydet</button>
+          <button class="ghost" type="button" data-profile-cancel>İptal</button>
+        </div>
       </form>
     `;
   }
@@ -2277,6 +2653,7 @@ function profileHubPage() {
           ${badgeShelf(user)}
           <div class="profile-actions">
             <button class="ghost" data-profile-panel="edit">Profili düzenle</button>
+            <button class="ghost" data-profile-panel="payment">Ödeme bilgileri</button>
             <button class="ghost" data-profile-panel="followers">${followerCount(user)} takipçi</button>
             <button class="ghost" data-profile-panel="following">${followingCount(user)} takip edilen</button>
             <span class="profile-stat-pill">${noteCount(user)} not</span>
@@ -2300,6 +2677,23 @@ function profileHubPage() {
 }
 
 function profilePanelContent(user, followers, following) {
+  if (profilePanel === "payment") {
+    const details = state.sellerPaymentProfiles.find((item) => item.userId === user.id) || {};
+    return `
+      <form class="panel wide-panel profile-edit-panel" data-action="seller-payment-profile">
+        <div class="section-head"><div><h2>Satıcı ödeme bilgileri</h2><p>IBAN yalnızca sen ve admin tarafından görüntülenebilir; herkese açık profilinde gösterilmez.</p></div></div>
+        <div class="form-grid">
+          <label>Banka adı<input name="bankName" value="${escapeHtml(details.bankName || "")}" autocomplete="off" required /></label>
+          <label>Hesap sahibi ad soyad<input name="accountHolder" value="${escapeHtml(details.accountHolder || "")}" autocomplete="name" required /></label>
+          <label class="full">IBAN<input name="iban" value="${escapeHtml(details.iban || "")}" autocomplete="off" autocapitalize="characters" required /></label>
+        </div>
+        <div class="profile-edit-actions">
+          <button class="primary" type="submit">Ödeme bilgilerini kaydet</button>
+          <button class="ghost" type="button" data-profile-cancel>İptal</button>
+        </div>
+      </form>
+    `;
+  }
   if (profilePanel === "edit") {
     return `
       <form class="panel wide-panel profile-edit-panel" data-action="profile">
@@ -2318,7 +2712,10 @@ function profilePanelContent(user, followers, following) {
           <label>Bölüm<input name="department" value="${escapeHtml(user.department || "")}" /></label>
           <label class="full">Profil yazısı<textarea name="bio" rows="3">${escapeHtml(user.bio || "")}</textarea></label>
         </div>
-        <button class="primary" type="submit">Kaydet</button>
+        <div class="profile-edit-actions">
+          <button class="primary" type="submit">Kaydet</button>
+          <button class="ghost" type="button" data-profile-cancel>İptal</button>
+        </div>
       </form>
     `;
   }
@@ -2388,10 +2785,10 @@ function allUserBadges(user) {
   const overrides = new Set(user.badgeOverrides || []);
   const notes = state.notes.filter((note) => note.sellerId === user.id);
   const approved = notes.filter((note) => note.status === "approved");
-  const sales = approved.reduce((sum, note) => sum + (note.sales || 0), 0);
+  const sales = approved.reduce((sum, note) => sum + noteSalesCount(note), 0);
   const reviews = approved.flatMap((note) => noteReviews(note.id));
   const avgRating = reviews.length ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length : 0;
-  const purchases = state.purchases.filter((purchase) => purchase.buyerId === user.id).length;
+  const purchases = state.purchases.filter((purchase) => purchase.buyerId === user.id && ["paid", "mock_paid"].includes(purchase.paymentStatus)).length;
   const userReviews = state.reviews.filter((review) => review.userId === user.id).length;
   const followers = followerCount(user);
   const following = followingCount(user);
@@ -2508,17 +2905,6 @@ function filterSelect(key, label, values) {
   return `<label>${label}<select data-filter="${key}">${selectOptions(`Tüm ${label.toLocaleLowerCase("tr")}`, values, filters[key])}</select></label>`;
 }
 
-function fallbackFormatSelect(note) {
-  return `<label class="download-format">İndirme formatı
-    <select data-download-format="${note.id}">
-      <option value="${note.fileType}">Notun formatı: ${note.fileType}</option>
-      <option value="PDF">PDF</option>
-      <option value="DOCX">DOCX</option>
-      <option value="PPTX">PPTX</option>
-      <option value="TXT">TXT</option>
-    </select>
-  </label>`;
-}
 
 function selectOptions(placeholder, values, selected) {
   return `<option value="">${placeholder}</option>${values.map((value) => `<option value="${escapeHtml(value)}" ${selected === value ? "selected" : ""}>${escapeHtml(value)}</option>`).join("")}`;
@@ -2547,6 +2933,16 @@ function bindEvents() {
     button.addEventListener("click", () => {
       if (button.dataset.route === "profile") profilePanel = "overview";
       navigate({ page: button.dataset.route });
+    });
+  });
+  document.querySelector("[data-open-seller-payment]")?.addEventListener("click", () => {
+    profilePanel = "payment";
+    navigate({ page: "profile" });
+  });
+  document.querySelectorAll('[data-action="search"] input[name="query"]').forEach((input) => {
+    input.addEventListener("input", () => {
+      filters.query = input.value;
+      updateNoteSearchResults();
     });
   });
   document.querySelectorAll("[data-detail]").forEach((button) => {
@@ -2588,6 +2984,10 @@ function bindEvents() {
     };
     render();
   });
+  document.querySelector('[data-action="admin-user-filter"] input[name="query"]')?.addEventListener("input", (event) => {
+    adminUserFilters.query = event.currentTarget.value;
+    updateAdminUserSearchResults();
+  });
   document.querySelectorAll('[data-action="admin-power"]').forEach((form) => {
     form.addEventListener("submit", saveAdminPower);
   });
@@ -2601,6 +3001,13 @@ function bindEvents() {
   });
   document.querySelector('[data-action="upload"] input[name="bookImages"]')?.addEventListener("change", previewBookImages);
   document.querySelector('[data-action="profile"]')?.addEventListener("submit", saveProfile);
+  document.querySelector('[data-action="seller-payment-profile"]')?.addEventListener("submit", saveSellerPaymentProfile);
+  document.querySelector('[data-action="platform-settings"]')?.addEventListener("submit", savePlatformSettings);
+  document.querySelectorAll('[data-action="receipt"]').forEach((form) => form.addEventListener("submit", submitPaymentReceipt));
+  bindClick("[data-profile-cancel]", () => {
+    profilePanel = "overview";
+    render();
+  });
   bindCatalogInputs();
   document.querySelector('[data-action="review"]')?.addEventListener("submit", addReview);
   document.querySelectorAll('[data-action="reply"]').forEach((form) => form.addEventListener("submit", addReply));
@@ -2610,6 +3017,11 @@ function bindEvents() {
   });
   document.querySelector("[data-ai-fill]")?.addEventListener("click", fillAiSummary);
   document.querySelector("[data-checkout]")?.addEventListener("click", checkout);
+  bindClick("[data-mock-receipt]", createMockReceipt);
+  bindClick("[data-view-receipt]", viewPaymentReceipt);
+  bindClick("[data-approve-payment]", (button) => reviewPayment(button.dataset.approvePayment, "approve"));
+  bindClick("[data-reject-payment]", (button) => reviewPayment(button.dataset.rejectPayment, "reject"));
+  bindClick("[data-record-payout]", (button) => recordSellerPayout(button.dataset.recordPayout));
   document.querySelector("[data-logout]")?.addEventListener("click", logout);
   bindClick("[data-user-profile]", (button) => {
     if (button.closest("[data-student-carousel]")?.dataset.suppressClick === "true") return;
@@ -2654,6 +3066,33 @@ function bindEvents() {
   bindClick("[data-report]", (button) => reportNote(button.dataset.report));
   bindClick("[data-approve]", (button) => moderateNote(button.dataset.approve, "approved"));
   bindClick("[data-reject]", (button) => moderateNote(button.dataset.reject, "rejected"));
+  document.querySelectorAll("[data-admin-note]").forEach((row) => {
+    row.addEventListener("dragstart", (event) => {
+      event.dataTransfer.setData("text/plain", row.dataset.adminNote);
+      event.dataTransfer.effectAllowed = "move";
+      row.classList.add("dragging");
+    });
+    row.addEventListener("dragend", () => row.classList.remove("dragging"));
+  });
+  document.querySelectorAll("[data-note-drop]").forEach((section) => {
+    section.addEventListener("dragover", (event) => {
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "move";
+      section.classList.add("drag-over");
+    });
+    section.addEventListener("dragleave", (event) => {
+      if (!section.contains(event.relatedTarget)) section.classList.remove("drag-over");
+    });
+    section.addEventListener("drop", (event) => {
+      event.preventDefault();
+      section.classList.remove("drag-over");
+      const noteId = event.dataTransfer.getData("text/plain");
+      const note = state.notes.find((item) => item.id === noteId);
+      if (note && note.status !== section.dataset.noteDrop) {
+        moderateNote(noteId, section.dataset.noteDrop);
+      }
+    });
+  });
   bindClick("[data-delete-note]", (button) => deleteNote(button.dataset.deleteNote));
   bindClick("[data-admin-delete-note]", (button) => adminDeleteNote(button.dataset.adminDeleteNote));
   bindClick("[data-admin-delete-user]", (button) => adminDeleteUser(button.dataset.adminDeleteUser));
@@ -2684,7 +3123,9 @@ function bindEvents() {
   bindClick("[data-close-report]", (button) => closeReport(button.dataset.closeReport));
   bindClick("[data-delete-report]", (button) => deleteReport(button.dataset.deleteReport));
   bindStudentCarousel();
+  markDocumentPreviewOverflow();
   hydrateRealPdfPreviews();
+  hydrateOfficePreviews();
   hydrateStoredEditPreview();
 }
 
@@ -2823,6 +3264,54 @@ async function hydrateRealPdfPreviews() {
   }
 }
 
+async function hydrateOfficePreviews() {
+  const cards = [...document.querySelectorAll("[data-office-preview]")];
+  if (!cards.length) return;
+  for (const card of cards) {
+    const noteId = card.dataset.officePreview;
+    const pageNumber = Number(card.dataset.page);
+    const note = state.notes.find((item) => item.id === noteId);
+    if (!note) continue;
+    if (!storedOfficePreviewCache.has(noteId)) {
+      storedOfficePreviewCache.set(noteId, (async () => {
+        const dataUrl = await getUploadedFile(noteId);
+        return dataUrl
+          ? extractPreviewPagesFromFile(
+              dataUrlToFile(dataUrl, note.fileName || "notum-file", note.fileMime || mimeForFileType(note.fileType)),
+              note.fileType
+            )
+          : [];
+      })());
+    }
+    const page = (await storedOfficePreviewCache.get(noteId))[pageNumber - 1];
+    if (!page) {
+      card.querySelector(".real-pdf-loading").textContent = "Belge sayfası yüklenemedi.";
+      continue;
+    }
+    card.innerHTML = `
+      <div class="page-number">Sayfa ${pageNumber}</div>
+      <div class="preview-document-text">${escapeHtml(page.body)}</div>
+      <div class="document-continuation">… Sayfanın devamı var; tamamı satın alınca görüntülenir.</div>
+      <div class="watermark">Notum önizleme</div>
+    `;
+    markDocumentPreviewOverflow(card);
+  }
+}
+
+function markDocumentPreviewOverflow(root = document) {
+  const cards = [
+    ...(root.matches?.(".document-preview-page") ? [root] : []),
+    ...root.querySelectorAll(".document-preview-page")
+  ];
+  cards.forEach((card) => {
+    const text = card.querySelector(".preview-document-text");
+    const continuation = card.querySelector(".document-continuation");
+    const hasOverflow = text && text.scrollHeight > text.clientHeight + 1;
+    card.classList.toggle("has-continuation", Boolean(hasOverflow));
+    if (continuation) continuation.hidden = !hasOverflow;
+  });
+}
+
 async function renderStoredPdfPage(dataUrl, pageNumber, slot) {
   if (!window.pdfjsLib) {
     slot.textContent = "PDF sayfasını göstermek için internet bağlantısı gerekiyor.";
@@ -2862,7 +3351,7 @@ async function setupPreviewPicker(event) {
   viewer.innerHTML = sourceViewerMarkup(file, pageCount, previous);
   counter.textContent = `${previous.length}/5`;
   if (fileType === "PDF") await renderUploadPdfPages(file, viewer, pageCount);
-  if (["DOCX", "PPTX", "TXT"].includes(fileType)) renderOfficeUploadPages(file, viewer, fileType);
+  if (["DOCX", "PPTX", "TXT"].includes(fileType)) await renderOfficeUploadPages(file, viewer, fileType);
 
   viewer.querySelectorAll("[data-preview-toggle]").forEach((checkbox) => {
     checkbox.addEventListener("change", () => {
@@ -2940,6 +3429,7 @@ function uploadPreviewPageMarkup(type, fileName, page, active, noteId = "") {
       </label>
       <span class="upload-page-number">Sayfa ${page}</span>
       ${body}
+      ${["DOCX", "PPTX", "TXT"].includes(type) ? `<div class="upload-document-continuation" hidden>… Sayfanın devamı var</div>` : ""}
     </article>
   `;
 }
@@ -2976,7 +3466,12 @@ async function renderOfficeUploadPages(file, viewer, type) {
   pages.forEach((page, index) => {
     const slot = viewer.querySelector(`[data-office-page="${index + 1}"]`);
     if (!slot) return;
-    slot.innerHTML = `<strong>${escapeHtml(page.title)}</strong><p>${escapeHtml(page.body)}</p>${page.bullets.length ? `<ul>${page.bullets.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>` : ""}`;
+    slot.innerHTML = page.plainText
+      ? `<div class="preview-document-text">${escapeHtml(page.body)}</div>`
+      : `<strong>${escapeHtml(page.title)}</strong><p>${escapeHtml(page.body)}</p>${page.bullets.length ? `<ul>${page.bullets.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>` : ""}`;
+    const continuation = slot.parentElement.querySelector(".upload-document-continuation");
+    const text = slot.querySelector(".preview-document-text");
+    if (continuation) continuation.hidden = !text || text.scrollHeight <= text.clientHeight + 1;
   });
 }
 
@@ -2984,7 +3479,7 @@ async function extractPreviewPagesFromFile(file, type = detectFileType(file.name
   const key = `${file.name}-${file.size}-${file.lastModified}-${type}`;
   if (officePreviewCache.has(key)) return officePreviewCache.get(key);
   let pages = [];
-  if (type === "TXT") pages = textToPreviewPages(await file.text(), "Sayfa");
+  if (type === "TXT") pages = textToPreviewPages(await file.text());
   if (type === "DOCX") pages = await docxToPreviewPages(file);
   if (type === "PPTX") pages = await pptxToPreviewPages(file);
   if (!pages.length) pages = [{ title: file.name, body: "Bu dosya için tarayıcıda önizleme üretilemedi.", bullets: [] }];
@@ -2998,11 +3493,44 @@ async function docxToPreviewPages(file) {
   const xml = await zip.file("word/document.xml")?.async("text");
   if (!xml) return [];
   const doc = new DOMParser().parseFromString(xml, "application/xml");
-  const paragraphs = [...doc.getElementsByTagName("w:p")]
-    .map((p) => [...p.getElementsByTagName("w:t")].map((t) => t.textContent).join(""))
-    .map((text) => text.trim())
-    .filter(Boolean);
-  return chunkTextBlocks(paragraphs, "Sayfa", 9);
+  const pages = [[]];
+  let hasPageBreaks = false;
+  const appendNodeText = (node, paragraph) => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      paragraph.push(node.textContent || "");
+      return;
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) return;
+    const name = node.localName;
+    if (name === "lastRenderedPageBreak" || (name === "br" && node.getAttribute("type") === "page")) {
+      pages[pages.length - 1].push(paragraph.join(""));
+      paragraph.length = 0;
+      pages.push([]);
+      hasPageBreaks = true;
+      return;
+    }
+    if (name === "br") {
+      paragraph.push("\n");
+      return;
+    }
+    if (name === "tab") {
+      paragraph.push("\t");
+      return;
+    }
+    node.childNodes.forEach((child) => appendNodeText(child, paragraph));
+  };
+
+  [...doc.getElementsByTagName("w:p")].forEach((element) => {
+    const paragraph = [];
+    element.childNodes.forEach((child) => appendNodeText(child, paragraph));
+    const text = paragraph.join("").trim();
+    if (text) pages[pages.length - 1].push(text);
+  });
+
+  const textPages = hasPageBreaks
+    ? pages.flatMap((paragraphs) => paginateDocumentParagraphs(paragraphs))
+    : paginateDocumentParagraphs(pages[0]);
+  return textPages.map((body) => ({ title: "", body, bullets: [], plainText: true }));
 }
 
 async function pptxToPreviewPages(file) {
@@ -3017,29 +3545,49 @@ async function pptxToPreviewPages(file) {
     const doc = new DOMParser().parseFromString(xml, "application/xml");
     const texts = [...doc.getElementsByTagName("a:t")].map((node) => node.textContent.trim()).filter(Boolean);
     pages.push({
-      title: texts[0] || `Slayt ${index + 1}`,
-      body: texts.slice(1, 4).join(" · ") || "Slayt içeriği",
-      bullets: texts.slice(4, 10)
+      title: "",
+      body: texts.join("\n\n") || `Slayt ${index + 1}`,
+      bullets: [],
+      plainText: true
     });
   }
   return pages;
 }
 
-function textToPreviewPages(text, label) {
-  const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-  return chunkTextBlocks(lines, label, 12);
+function textToPreviewPages(text) {
+  return paginateDocumentParagraphs(text.split(/\r?\n/))
+    .map((body) => ({ title: "", body, bullets: [], plainText: true }));
 }
 
-function chunkTextBlocks(lines, label, size) {
+function paginateDocumentParagraphs(paragraphs) {
+  const maxColumns = 52;
+  const maxLinesPerPage = 47;
   const pages = [];
-  for (let i = 0; i < lines.length; i += size) {
-    const part = lines.slice(i, i + size);
-    pages.push({
-      title: part[0] || `${label} ${pages.length + 1}`,
-      body: part.slice(1, 3).join(" ") || part[0] || "",
-      bullets: part.slice(3, size)
-    });
-  }
+  let page = [];
+  let usedLines = 0;
+
+  paragraphs.map((paragraph) => String(paragraph || "").trim()).filter(Boolean).forEach((paragraph) => {
+    const lines = wrapText(paragraph, maxColumns);
+    let offset = 0;
+    while (offset < lines.length) {
+      if (usedLines === maxLinesPerPage) {
+        pages.push(page.join("\n\n"));
+        page = [];
+        usedLines = 0;
+      }
+      const remaining = maxLinesPerPage - usedLines;
+      const part = lines.slice(offset, offset + remaining);
+      page.push(part.join("\n"));
+      usedLines += part.length;
+      offset += part.length;
+      if (offset < lines.length) {
+        pages.push(page.join("\n\n"));
+        page = [];
+        usedLines = 0;
+      }
+    }
+  });
+  if (page.length) pages.push(page.join("\n\n"));
   return pages;
 }
 
@@ -3115,9 +3663,16 @@ async function hydrateSupabaseState() {
 async function login(event) {
   event.preventDefault();
   const data = new FormData(event.currentTarget);
+  const email = data.get("email").trim();
+  const password = data.get("password");
+
   if (window.NotumSupabase?.isConfigured) {
+    if (email.toLocaleLowerCase("tr") === "admin@notum.test") {
+      alert("admin@notum.test yalnızca yerel demo hesabıdır. Supabase admin hesabının e-postası ve şifresiyle giriş yapın.");
+      return;
+    }
     try {
-      state = normalizeState(await window.NotumSupabase.login(data.get("email").trim(), data.get("password"), state));
+      state = normalizeState(await window.NotumSupabase.login(email, password, state));
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
       navigate({ page: "home" });
     } catch (error) {
@@ -3125,11 +3680,16 @@ async function login(event) {
     }
     return;
   }
-  const user = state.users.find((item) => item.email === data.get("email") && item.password === data.get("password"));
-  if (!user) return alert("E-posta veya şifre hatalı.");
-  state.currentUserId = user.id;
-  saveState();
-  navigate({ page: "home" });
+
+  const localUser = state.users.find((item) => item.email === email && item.password === password);
+  if (localUser) {
+    state.currentUserId = localUser.id;
+    saveState();
+    navigate({ page: "home" });
+    return;
+  }
+
+  alert("E-posta veya şifre hatalı.");
 }
 
 async function register(event) {
@@ -3178,13 +3738,28 @@ async function register(event) {
 }
 
 async function upload(event) {
-  event.preventDefault();
+  if (event && typeof event.preventDefault === "function") event.preventDefault();
+  const form = event?.currentTarget instanceof HTMLFormElement
+    ? event.currentTarget
+    : event?.target instanceof HTMLFormElement
+      ? event.target
+      : document.querySelector('[data-action="upload"]');
+
+  if (!(form instanceof HTMLFormElement)) {
+    console.warn("Upload çagrisi form olmadan yapildi.", event);
+    return;
+  }
+
   const user = currentUser();
   if (window.NotumSupabase?.isConfigured && !user?.eduVerified) {
     alert("Materyal yuklemek icin dogrulanmis .edu.tr ogrenci e-postasi gerekiyor.");
     return;
   }
-  const data = new FormData(event.currentTarget);
+  if (window.NotumSupabase?.isConfigured && !(await window.NotumSupabase.isAuthenticated?.())) {
+    alert("Supabase oturumu aktif değil. Lütfen tekrar giriş yapın.");
+    return;
+  }
+  const data = new FormData(form);
   const selectedMaterialType = data.get("materialType") === "book" ? "book" : "note";
   if (selectedMaterialType === "book") {
     await uploadBook(data, user);
@@ -3287,9 +3862,17 @@ async function uploadBook(data, user) {
 }
 
 async function saveEditedNote(event) {
-  event.preventDefault();
+  if (event && typeof event.preventDefault === "function") event.preventDefault();
+  const form = event?.currentTarget instanceof HTMLFormElement
+    ? event.currentTarget
+    : event?.target instanceof HTMLFormElement
+      ? event.target
+      : document.querySelector('[data-action="edit-note"]');
+  if (!(form instanceof HTMLFormElement)) {
+    console.warn("Edit note çağrısı form olmadan yapildi.", event);
+    return;
+  }
   const user = currentUser();
-  const form = event.currentTarget;
   const note = state.notes.find((item) => item.id === form.dataset.note && item.sellerId === user?.id);
   if (!note) return alert("Bu not düzenlenemedi.");
 
@@ -3312,6 +3895,7 @@ async function saveEditedNote(event) {
       pageCount = Math.max(1, extractedPreviewPages.length);
     }
     await saveUploadedFile(note.id, await readFileAsDataUrl(file));
+    storedOfficePreviewCache.delete(note.id);
     note.fileName = file.name;
     note.fileType = fileType;
     note.fileMime = file.type || mimeForFileType(fileType);
@@ -3423,31 +4007,509 @@ function removeFromCart(noteId) {
   render();
 }
 
-function checkout() {
+async function checkout() {
   const user = currentUser();
   if (!user) {
     navigate({ page: "auth" });
     return;
   }
-  state.cart.forEach((noteId) => {
-    const note = state.notes.find((item) => item.id === noteId);
-    if (!note || hasPurchased(user.id, noteId)) return;
-    state.purchases.push({
-      id: id("p"),
-      buyerId: user.id,
-      noteId,
-      amount: note.price,
-      paymentStatus: "paid",
-      createdAt: new Date().toISOString().slice(0, 10),
-      downloadToken: `DL-${Math.random().toString(36).slice(2, 8).toUpperCase()}`
-    });
-    note.sales += 1;
-  });
-  state.cart = [];
+  const isMock = Boolean(document.querySelector("[data-mock-payment]")?.checked);
+  if (isMock && !state.platformSettings?.mockPaymentsEnabled) {
+    alert("Mock ödemeler şu anda admin tarafından kapalı.");
+    return;
+  }
+  const settings = state.platformSettings || {};
+  if (!isMock && !(settings.bankName && settings.iban && settings.accountHolder)) {
+    alert("Gerçek ödeme siparişi için adminin banka bilgilerini tamamlaması gerekiyor.");
+    return;
+  }
+  const noteIds = [...state.cart];
+  const existingOrder = state.purchases.find((purchase) =>
+    purchase.buyerId === user.id && noteIds.includes(purchase.noteId)
+  );
+  if (existingOrder) {
+    alert("Bu not için zaten bir sipariş var. Panelim bölümünden ödeme durumunu veya dekontu kontrol et.");
+    navigate({ page: "student" });
+    return;
+  }
+  const createdNoteIds = [];
+  const skippedNoteIds = [];
+  try {
+    for (const noteId of noteIds) {
+      const note = state.notes.find((item) => item.id === noteId);
+      if (!note || note.status !== "approved") {
+        skippedNoteIds.push(noteId);
+        continue;
+      }
+      const referenceCode = createReferenceCode();
+      const purchase = {
+        id: id("p"),
+        buyerId: user.id,
+        noteId,
+        amount: note.price,
+        paymentStatus: "pending_payment",
+        referenceCode,
+        receiptPath: "",
+        isMock,
+        createdAt: new Date().toISOString(),
+        downloadToken: `DL-${referenceCode.slice(-10)}`
+      };
+      const saved = window.NotumSupabase?.isConfigured
+        ? await window.NotumSupabase.createPurchase(purchase)
+        : purchase;
+      state.purchases.push(saved);
+      createdNoteIds.push(noteId);
+    }
+  } catch (error) {
+    if (window.NotumSupabase?.isConfigured) {
+      try {
+        state = normalizeState(await window.NotumSupabase.loadState(state));
+      } catch (refreshError) {
+        console.error("Failed to refresh purchases after checkout error", refreshError);
+      }
+    }
+    state.cart = state.cart.filter((noteId) => !createdNoteIds.includes(noteId) && !skippedNoteIds.includes(noteId));
+    saveState();
+    alert(error.message || "Sipariş oluşturulamadı. Ödeme ayarlarını ve Supabase şemasını kontrol edin.");
+    if (createdNoteIds.length) navigate({ page: "student" });
+    return;
+  }
+  state.cart = state.cart.filter((noteId) => !createdNoteIds.includes(noteId));
   saveState();
   navigate({ page: "student" });
 }
 
+function createReferenceCode() {
+  const bytes = new Uint8Array(8);
+  crypto.getRandomValues(bytes);
+  const suffix = [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("").toUpperCase();
+  const date = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+  return `NTM-${date}-${suffix}`;
+}
+
+async function submitPaymentReceipt(event) {
+  event.preventDefault();
+  const purchaseId = event.currentTarget.dataset.purchase;
+  const file = new FormData(event.currentTarget).get("receipt");
+  await sendPaymentReceipt(purchaseId, file, event.currentTarget.querySelector('[type="submit"]'));
+}
+
+async function sendPaymentReceipt(purchaseId, file, submitButton) {
+  const purchase = state.purchases.find((item) => item.id === purchaseId);
+  const canReplaceMockReceipt = purchase?.isMock && purchase.paymentStatus === "pending_review";
+  if (!purchase || (!["pending_payment", "rejected"].includes(purchase.paymentStatus) && !canReplaceMockReceipt)) {
+    alert("Bu sipariş şu anda dekont kabul etmiyor.");
+    return;
+  }
+  if (!(file instanceof File) || !["application/pdf", "image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+    alert("Dekont PDF, JPG, PNG veya WEBP olmalı.");
+    return;
+  }
+  if (file.size > 8 * 1024 * 1024) {
+    alert("Dekont dosyası en fazla 8 MB olabilir.");
+    return;
+  }
+  if (submitButton) {
+    submitButton.disabled = true;
+    submitButton.textContent = "Dekont taranıyor…";
+  }
+  try {
+    const receiptCheck = await analyzeReceipt(file, purchase);
+    let updated;
+    if (window.NotumSupabase?.isConfigured) {
+      updated = await window.NotumSupabase.uploadPaymentReceipt(purchase.id, file, receiptCheck, purchase.receiptPath);
+    } else {
+      await storeLocalPaymentReceipt(purchase.id, file);
+      updated = {
+        ...purchase,
+        receiptPath: `local/${purchase.id}`,
+        paymentStatus: "pending_review",
+        receiptCheckStatus: receiptCheck.status,
+        receiptDetectedReference: receiptCheck.detectedReference,
+        receiptDetectedAmount: receiptCheck.detectedAmount,
+        receiptDetectedDescription: receiptCheck.detectedDescription
+      };
+    }
+    state.purchases = state.purchases.map((item) => item.id === updated.id ? updated : item);
+    saveState();
+    render();
+  } catch (error) {
+    console.error("Payment receipt upload failed", { purchaseId, error });
+    alert(error.message || "Dekont gönderilemedi.");
+  } finally {
+    if (submitButton) {
+      submitButton.disabled = false;
+      submitButton.textContent = "Dekontu kontrol et ve gönder";
+    }
+  }
+}
+
+async function analyzeReceipt(file, purchase) {
+  let pdfText = "";
+  let pdfTextCheck = null;
+  let pdf = null;
+  if (file.type === "application/pdf") {
+    if (!window.pdfjsLib) throw new Error("PDF kontrol aracı yüklenemedi. Sayfayı yenileyip tekrar deneyin.");
+    pdf = await window.pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
+    for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+      const page = await pdf.getPage(pageNumber);
+      const content = await page.getTextContent();
+      pdfText += `${pdfTextLines(content.items)}\n`;
+    }
+    if (pdfText.trim()) {
+      pdfTextCheck = receiptTextCheck(pdfText, purchase);
+      if (pdfTextCheck.status === "matched" && pdfTextCheck.detectedDescription) return pdfTextCheck;
+    }
+  }
+
+  if (!window.Tesseract?.createWorker) {
+    if (pdfTextCheck) return pdfTextCheck;
+    throw new Error("Tarayıcı OCR aracı yüklenemedi. Sayfayı yenileyip tekrar deneyin.");
+  }
+  const worker = await window.Tesseract.createWorker("tur+eng");
+  try {
+    if (pdf) {
+      let ocrText = "";
+      for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+        const page = await pdf.getPage(pageNumber);
+        const viewport = page.getViewport({ scale: 2 });
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.ceil(viewport.width);
+        canvas.height = Math.ceil(viewport.height);
+        const context = canvas.getContext("2d", { alpha: false });
+        if (!context) throw new Error("PDF sayfası OCR için hazırlanamadı.");
+        await page.render({ canvasContext: context, viewport }).promise;
+        const result = await worker.recognize(canvas);
+        ocrText += `\n${result.data.text}`;
+        canvas.width = 0;
+        canvas.height = 0;
+      }
+      const ocrCheck = receiptTextCheck(ocrText, purchase);
+      if (ocrCheck.status === "matched" && ocrCheck.detectedDescription) return ocrCheck;
+      return pdfTextCheck ? mergeReceiptChecks(pdfTextCheck, ocrCheck, purchase) : ocrCheck;
+    } else {
+      const result = await worker.recognize(file);
+      return receiptTextCheck(result.data.text, purchase);
+    }
+  } finally {
+    await worker.terminate();
+  }
+}
+
+function mergeReceiptChecks(textCheck, ocrCheck, purchase) {
+  const reference = [ocrCheck.detectedReference, textCheck.detectedReference]
+    .find((value) => normalizeReceiptReference(value) === normalizeReceiptReference(purchase.referenceCode))
+    || ocrCheck.detectedReference
+    || textCheck.detectedReference
+    || "";
+  const amount = [ocrCheck.detectedAmount, textCheck.detectedAmount]
+    .find((value) => value !== null && value !== undefined
+      && Math.round(Number(value) * 100) === Math.round(Number(purchase.amount) * 100))
+    ?? ocrCheck.detectedAmount
+    ?? textCheck.detectedAmount
+    ?? null;
+  const referenceMatched = normalizeReceiptReference(reference) === normalizeReceiptReference(purchase.referenceCode);
+  const amountMatched = amount !== null && Math.round(Number(amount) * 100) === Math.round(Number(purchase.amount) * 100);
+  return {
+    status: referenceMatched && amountMatched ? "matched" : reference || amount !== null ? "mismatch" : "unreadable",
+    detectedReference: reference,
+    detectedAmount: amount,
+    detectedDescription: ocrCheck.detectedDescription || textCheck.detectedDescription
+  };
+}
+
+function receiptTextCheck(text, purchase) {
+  const normalized = normalizeReceiptReference(text);
+  const reference = normalizeReceiptReference(purchase.referenceCode || "");
+  const referenceMatched = Boolean(reference && normalized.includes(reference));
+  const amountCents = Math.round(Number(purchase.amount) * 100);
+  const amounts = receiptAmounts(text);
+  const detectedAmount = amounts.find((amount) => amount === amountCents);
+  const detectedReference = referenceMatched
+    ? purchase.referenceCode
+    : text.match(/NTM[\s._-]*\d{8}[\s._-]*[A-Z0-9]{12,20}/i)?.[0]?.trim() || "";
+  return {
+    status: referenceMatched && detectedAmount !== undefined ? "matched" : text.trim() ? "mismatch" : "unreadable",
+    detectedReference,
+    detectedAmount: detectedAmount !== undefined ? detectedAmount / 100 : amounts.length ? amounts[0] / 100 : null,
+    detectedDescription: receiptDescription(text)
+  };
+}
+
+function pdfTextLines(items) {
+  const rows = [];
+  items
+    .filter((item) => "str" in item && item.str.trim())
+    .sort((first, second) => second.transform[5] - first.transform[5] || first.transform[4] - second.transform[4])
+    .forEach((item) => {
+      const y = item.transform[5];
+      let row = rows.find((candidate) => Math.abs(candidate.y - y) < 3);
+      if (!row) {
+        row = { y, parts: [] };
+        rows.push(row);
+      }
+      row.parts.push({ x: item.transform[4], text: item.str.trim() });
+    });
+  return rows
+    .sort((first, second) => second.y - first.y)
+    .map((row) => row.parts.sort((first, second) => first.x - second.x).map((part) => part.text).join(" "))
+    .join("\n");
+}
+
+function receiptDescription(text) {
+  const lines = String(text || "").split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const labelPattern = /(?:işlem|islem|transfer|eft|havale|ödeme|odeme)?\s*(?:açıklama(?:sı)?|aciklama(?:si)?|description)\s*[:\-]?\s*(.*)$/iu;
+  for (let index = 0; index < lines.length; index += 1) {
+    const match = lines[index].match(labelPattern);
+    if (!match) continue;
+    const description = match[1].trim() || lines[index + 1] || "";
+    return description.slice(0, 500);
+  }
+  return "";
+}
+
+function normalizeReceiptReference(value) {
+  return String(value || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
+function receiptAmounts(text) {
+  const values = new Map();
+  const numberPattern = /\d{1,3}(?:[., ]\d{3})*[.,]\d{2}|\d{1,3}(?:[., ]\d{3})+|\d+(?:[.,]\d{2})|\d+/g;
+  for (const match of String(text || "").matchAll(numberPattern)) {
+    const token = match[0].replace(/\s/g, "");
+    const lastComma = token.lastIndexOf(",");
+    const lastDot = token.lastIndexOf(".");
+    let normalized = token;
+    if (lastComma >= 0 && lastDot >= 0) {
+      const decimalSeparator = lastComma > lastDot ? "," : ".";
+      normalized = decimalSeparator === ","
+        ? token.replace(/\./g, "").replace(",", ".")
+        : token.replace(/,/g, "");
+    } else if (lastComma >= 0 || lastDot >= 0) {
+      const separator = lastComma >= 0 ? "," : ".";
+      const digitsAfterSeparator = token.length - token.lastIndexOf(separator) - 1;
+      normalized = digitsAfterSeparator === 2
+        ? token.replace(separator, ".")
+        : token.replace(/[,.]/g, "");
+    }
+    const amount = Number(normalized);
+    if (Number.isFinite(amount) && amount >= 0) {
+      const context = String(text).slice(Math.max(0, match.index - 24), match.index + match[0].length + 16);
+      const score = (/(?:₺|\bTRY\b|\bTL\b)/i.test(context) ? 4 : 0)
+        + (/(?:tutar|amount|toplam|transfer|gönderilen|miktar)/i.test(context) ? 2 : 0)
+        + (/[,.]\d{2}$/.test(token) ? 1 : 0);
+      const cents = Math.round(amount * 100);
+      values.set(cents, Math.max(values.get(cents) || 0, score));
+    }
+  }
+  return [...values.entries()].sort((first, second) => second[1] - first[1]).map(([amount]) => amount);
+}
+
+async function createMockReceipt(button) {
+  const purchase = state.purchases.find((item) => item.id === button.dataset.mockReceipt);
+  if (!purchase?.isMock || !state.platformSettings?.mockPaymentsEnabled) {
+    alert("Mock dekont yalnızca mock test siparişinde oluşturulabilir.");
+    return;
+  }
+  if (!window.jspdf?.jsPDF) {
+    alert("Örnek dekont oluşturulamadı. PDF aracı yüklenmemiş.");
+    return;
+  }
+  const file = createMockReceiptFile(purchase, button.dataset.mockResult);
+  await sendPaymentReceipt(purchase.id, file);
+}
+
+function createMockReceiptFile(purchase, result) {
+  const isCorrect = result === "correct";
+  const wrongReference = purchase.referenceCode.replace(/([A-F0-9])$/i, (last) => (last === "0" ? "1" : "0"));
+  const displayedReference = isCorrect ? purchase.referenceCode : wrongReference;
+  const displayedAmount = isCorrect ? Number(purchase.amount) : Number(purchase.amount) + 1;
+  const description = isCorrect
+    ? `${purchase.referenceCode} Notum siparis odemesi`
+    : `${wrongReference} Baska siparis icin odeme`;
+  const pdf = new window.jspdf.jsPDF();
+  pdf.setFontSize(18);
+  pdf.text("NOTUM MOCK TEST - BANKA DEKONTU DEGILDIR", 18, 24);
+  pdf.setFontSize(12);
+  pdf.text(`Description: ${description}`, 18, 44);
+  pdf.text(`Referans: ${displayedReference}`, 18, 58);
+  pdf.text(`Tutar: ${displayedAmount.toFixed(2)} TRY`, 18, 72);
+  pdf.text(isCorrect ? "Test türü: dogru referans ve tutar" : "Test türü: hatali referans ve tutar", 18, 88);
+  const testName = isCorrect ? "DOGRU" : "YANLIS";
+  return new File([pdf.output("blob")], `${purchase.referenceCode}-MOCK-${testName}.pdf`, { type: "application/pdf" });
+}
+
+async function viewPaymentReceipt(button) {
+  const purchase = state.purchases.find((item) => item.id === button.dataset.viewReceipt);
+  if (!purchase?.receiptPath) {
+    alert("Bu sipariş için dekont bulunmuyor.");
+    return;
+  }
+  const receiptWindow = window.open("about:blank", "_blank");
+  if (!receiptWindow) {
+    alert("Dekontu görüntülemek için açılır pencereye izin verin.");
+    return;
+  }
+  receiptWindow.opener = null;
+  try {
+    let url;
+    if (purchase.receiptPath.startsWith("local/")) {
+      const file = await getLocalPaymentReceipt(purchase.id);
+      if (!file) throw new Error("Yerel dekont dosyası bulunamadı.");
+      url = URL.createObjectURL(file);
+      receiptWindow.location.href = url;
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } else {
+      url = await window.NotumSupabase.getPaymentReceiptUrl(purchase.id, purchase.receiptPath);
+      receiptWindow.location.href = url;
+    }
+  } catch (error) {
+    receiptWindow.close();
+    alert(error.message || "Dekont açılamadı.");
+  }
+}
+
+async function reviewPayment(purchaseId, decision) {
+  const purchase = state.purchases.find((item) => item.id === purchaseId);
+  if (!purchase || purchase.paymentStatus !== "pending_review") return;
+  if (decision === "approve" && purchase.isMock && !state.platformSettings?.mockPaymentsEnabled) {
+    alert("Mock ödeme ayarı kapalı. Bu sipariş onaylanamaz.");
+    return;
+  }
+  if (decision === "approve") {
+    const amount = money(purchase.amount);
+    const message = purchase.isMock
+      ? `Bu sipariş MOCK TEST'tir; gerçek ödeme değildir. ${amount} tutarını mock olarak onaylamak istiyor musun?`
+      : `Dekont açıklamasında ${purchase.referenceCode} kodunu ve ${amount} tutarını doğruladın mı? Onaydan sonra not indirilebilir olacak.`;
+    if (!confirm(message)) return;
+  }
+  if (decision === "reject" && !confirm("Bu dekontu reddetmek istiyor musun?")) return;
+  const paymentStatus = decision === "reject" ? "rejected" : purchase.isMock ? "mock_paid" : "paid";
+  try {
+    const updated = window.NotumSupabase?.isConfigured
+      ? await window.NotumSupabase.reviewPurchase(purchase.id, paymentStatus)
+      : { ...purchase, paymentStatus, reviewedAt: new Date().toISOString() };
+    if (["paid", "mock_paid"].includes(updated.paymentStatus) && !["paid", "mock_paid"].includes(purchase.paymentStatus)) {
+      applyConfirmedPurchaseLocally(updated);
+    }
+    state.purchases = state.purchases.map((item) => item.id === updated.id ? updated : item);
+    saveState();
+    render();
+  } catch (error) {
+    alert(error.message || "Ödeme durumu güncellenemedi.");
+  }
+}
+
+function applyConfirmedPurchaseLocally(updated) {
+  const note = state.notes.find((item) => item.id === updated.noteId);
+  if (note) note.sales = Math.max(Number(note.sales) || 0, confirmedPurchases(note.id).length + 1);
+
+  const sellerId = note?.sellerId;
+  if (!sellerId) return;
+  const summary = state.sellerSalesSummaries.find((item) => item.noteId === note.id);
+  if (summary) {
+    summary.salesCount = Math.max(Number(summary.salesCount) || 0, confirmedPurchases(note.id).length + 1);
+    summary.grossSales = (Number(summary.grossSales) || 0) + Number(updated.amount || 0);
+    summary.dueAmount = (Number(summary.dueAmount) || 0) + Number(updated.amount || 0) * 0.8;
+    return;
+  }
+  state.sellerSalesSummaries.push({
+    sellerId,
+    noteId: note.id,
+    salesCount: confirmedPurchases(note.id).length + 1,
+    grossSales: Number(updated.amount || 0),
+    dueAmount: Number(updated.amount || 0) * 0.8
+  });
+}
+
+async function saveSellerPaymentProfile(event) {
+  event.preventDefault();
+  const user = currentUser();
+  if (!user) return;
+  const data = new FormData(event.currentTarget);
+  const details = {
+    userId: user.id,
+    bankName: String(data.get("bankName") || "").trim(),
+    accountHolder: String(data.get("accountHolder") || "").trim(),
+    iban: String(data.get("iban") || "").replace(/\s+/g, "").toUpperCase()
+  };
+  if (details.iban.length < 15 || details.iban.length > 34) {
+    alert("IBAN uzunluğunu kontrol edin.");
+    return;
+  }
+  try {
+    await window.NotumSupabase?.saveSellerPaymentDetails?.(details);
+    state.sellerPaymentProfiles = [
+      ...state.sellerPaymentProfiles.filter((item) => item.userId !== user.id),
+      details
+    ];
+    saveState();
+    profilePanel = "overview";
+    render();
+  } catch (error) {
+    alert(error.message || "Ödeme bilgileri kaydedilemedi.");
+  }
+}
+
+async function savePlatformSettings(event) {
+  event.preventDefault();
+  const data = new FormData(event.currentTarget);
+  const settings = {
+    bankName: String(data.get("bankName") || "").trim(),
+    accountHolder: String(data.get("accountHolder") || "").trim(),
+    iban: String(data.get("iban") || "").replace(/\s+/g, "").toUpperCase(),
+    payoutWeekday: String(data.get("payoutWeekday") || "Friday"),
+    mockPaymentsEnabled: data.get("mockPaymentsEnabled") === "on"
+  };
+  if (settings.iban.length < 15 || settings.iban.length > 34) {
+    alert("IBAN uzunluğunu kontrol edin.");
+    return;
+  }
+  try {
+    if (window.NotumSupabase?.isConfigured) {
+      Object.assign(settings, await window.NotumSupabase.updatePlatformSettings(settings));
+    }
+    state.platformSettings = settings;
+    saveState();
+    alert("Ödeme ayarları kaydedildi.");
+    render();
+  } catch (error) {
+    alert(error.message || "Ödeme ayarları kaydedilemedi.");
+  }
+}
+
+async function recordSellerPayout(sellerId) {
+  const { duePurchases, actualDue } = sellerPayoutAmounts(sellerId);
+  if (!duePurchases.length || actualDue <= 0) {
+    alert("Bu satıcı için ödenecek tutar bulunmuyor.");
+    return;
+  }
+  const user = state.users.find((item) => item.id === sellerId);
+  if (!confirm(`${user?.name || "Satıcı"} için ${money(actualDue)} tutarındaki GERÇEK havaleyi yaptın mı? Mock satışlar bu tutara dahil değildir.`)) return;
+  try {
+    const payout = window.NotumSupabase?.isConfigured
+      ? await window.NotumSupabase.recordSellerPayout(sellerId, duePurchases.map((purchase) => purchase.id))
+      : {
+        id: id("pay"),
+        sellerId,
+        amount: Math.round(actualDue * 100) / 100,
+        purchaseIds: duePurchases.map((purchase) => purchase.id),
+        paidAt: new Date().toISOString(),
+        adminNote: ""
+      };
+    state.sellerPayouts.push(payout);
+    for (const summary of state.sellerSalesSummaries.filter((item) => item.sellerId === sellerId)) {
+      const includedAmount = duePurchases
+        .filter((purchase) => purchase.noteId === summary.noteId)
+        .reduce((sum, purchase) => sum + Number(purchase.amount || 0) * 0.8, 0);
+      summary.dueAmount = Math.max(0, Number(summary.dueAmount || 0) - includedAmount);
+    }
+    saveState();
+    render();
+  } catch (error) {
+    alert(error.message || "Satıcı ödemesi kaydedilemedi.");
+  }
+}
 function toggleFavorite(noteId) {
   const user = currentUser();
   if (!user) return;
@@ -3529,6 +4591,15 @@ async function downloadNote(noteId) {
     alert("Kitaplar fiziksel satış içindir; indirilebilir dosya bulunmaz.");
     return;
   }
+  const purchase = state.purchases.find((item) =>
+    item.buyerId === user?.id
+    && item.noteId === noteId
+    && ["paid", "mock_paid"].includes(item.paymentStatus)
+  );
+  if (!user || !purchase) {
+    alert("Notu indirmek için admin tarafından onaylanmış bir ödeme gerekir.");
+    return;
+  }
   if (hasOriginalFile(note)) {
     const dataUrl = note.fileData || (await getUploadedFile(note.id));
     if (!dataUrl) {
@@ -3538,14 +4609,12 @@ async function downloadNote(noteId) {
     downloadDataUrl(note.fileName, dataUrl);
     return;
   }
-  const purchase = state.purchases.find((item) => item.buyerId === user.id && item.noteId === noteId);
-  const watermark = `Notum | ${user.name} | ${user.email} | ${purchase?.id || "preview"}`;
-  const format = selectedDownloadFormat(note.id, note.fileType);
-  await downloadGeneratedFile(note, watermark, format, "notum-dosya");
+
+  await downloadGeneratedFile(note, "", "PDF", "notum-dosya");
 }
 
-function selectedDownloadFormat(noteId, fallback) {
-  return document.querySelector(`[data-download-format="${noteId}"]`)?.value || fallback || "PDF";
+function selectedDownloadFormat() {
+  return "PDF";
 }
 
 async function downloadGeneratedFile(note, watermark, format, suffix) {
@@ -3628,6 +4697,33 @@ function openFileDb() {
     };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
+  });
+}
+
+async function storeLocalPaymentReceipt(purchaseId, file) {
+  const db = await openFileDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction("files", "readwrite");
+    tx.objectStore("files").put(file, `receipt:${purchaseId}`);
+    tx.oncomplete = () => {
+      db.close();
+      resolve();
+    };
+    tx.onerror = () => {
+      db.close();
+      reject(tx.error);
+    };
+  });
+}
+
+async function getLocalPaymentReceipt(purchaseId) {
+  const db = await openFileDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction("files", "readonly");
+    const request = tx.objectStore("files").get(`receipt:${purchaseId}`);
+    request.onsuccess = () => resolve(request.result || null);
+    request.onerror = () => reject(request.error);
+    tx.oncomplete = () => db.close();
   });
 }
 
@@ -3800,12 +4896,73 @@ function pptTextBox(idValue, text, x, y, cx, cy, size, color, rotation = 0) {
 }
 
 async function buildPdfBlob(note, watermark) {
-  const pages = downloadPages(note);
-  const images = [];
-  for (let index = 0; index < pages.length; index += 1) {
-    images.push(await renderPageJpeg(pages[index], index, watermark));
+  if (!window.jspdf?.jsPDF) {
+    throw new Error("PDF üretimi için jsPDF yüklenemedi.");
   }
-  return new Blob([buildImagePdf(images)], { type: "application/pdf" });
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: "pt", format: "a4" });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 48;
+  const maxWidth = pageWidth - margin * 2;
+  let y = margin;
+
+  const pushBlock = (lines, options = {}) => {
+    const { size = 11, bold = false, color = [28, 34, 40] } = options;
+    if (!lines.length) return;
+    doc.setFont("helvetica", bold ? "bold" : "normal");
+    doc.setFontSize(size);
+    doc.setTextColor(...color);
+    lines.forEach((line) => {
+      if (y > pageHeight - margin - size) {
+        doc.addPage();
+        y = margin;
+      }
+      const wrapped = doc.splitTextToSize(line || "", maxWidth);
+      wrapped.forEach((part) => {
+        if (y > pageHeight - margin - size) {
+          doc.addPage();
+          y = margin;
+        }
+        doc.text(part, margin, y);
+        y += size * 1.35;
+      });
+    });
+    y += 10;
+  };
+
+  pushBlock([note.title], { size: 20, bold: true, color: [36, 48, 47] });
+  pushBlock([
+    `Ders: ${note.course}`,
+    `Üniversite: ${note.university}`,
+    `Hoca: ${note.instructor}`,
+    `Satıcı: ${sellerName(note)}`
+  ], { size: 10, color: [76, 90, 98] });
+
+  const pages = downloadPages(note);
+  pages.forEach((page, index) => {
+    pushBlock([`Sayfa ${index + 1}`], { size: 12, bold: true, color: [194, 106, 58] });
+    pushBlock([page.title], { size: 16, bold: true, color: [36, 48, 47] });
+    pushBlock(doc.splitTextToSize(page.body || "", maxWidth), { size: 11, color: [28, 34, 40] });
+    if (page.bullets && page.bullets.length) {
+      page.bullets.forEach((item) => {
+        pushBlock([`• ${item}`], { size: 11, color: [28, 34, 40] });
+      });
+    }
+    if (page.callout) {
+      pushBlock([page.callout], { size: 11, bold: true, color: [26, 79, 74] });
+    }
+  });
+
+  if (watermark) {
+    doc.setTextColor(36, 48, 47);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(28);
+    doc.text(watermark, pageWidth / 2, pageHeight / 2, { angle: -28, align: "center" });
+  }
+
+  return doc.output("blob");
 }
 
 function downloadPages(note) {
@@ -3818,111 +4975,6 @@ function downloadPages(note) {
     },
     ...getPreviewPages(note)
   ];
-}
-
-async function renderPageJpeg(page, index, watermark) {
-  const width = 1240;
-  const height = 1754;
-  const svg = pageSvg(page, index, watermark, width, height);
-  const image = await loadSvgImage(svg);
-  const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext("2d");
-  ctx.drawImage(image, 0, 0);
-  const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
-  return {
-    width,
-    height,
-    data: base64ToBytes(dataUrl.split(",")[1])
-  };
-}
-
-function pageSvg(page, index, watermark, width, height) {
-  const bodyLines = wrapText(page.body, 78).slice(0, 12);
-  const bullets = page.bullets.flatMap((item) => wrapText(`• ${item}`, 72)).slice(0, 10);
-  const yStart = 300;
-  const textLines = [
-    ...bodyLines.map((line, lineIndex) => ({ text: line, y: yStart + lineIndex * 42, size: 28, color: "#24302f" })),
-    ...bullets.map((line, lineIndex) => ({ text: line, y: yStart + bodyLines.length * 42 + 58 + lineIndex * 40, size: 27, color: "#24302f" }))
-  ];
-  const calloutY = Math.min(1320, yStart + bodyLines.length * 42 + bullets.length * 40 + 110);
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
-    <rect width="100%" height="100%" fill="#f3efe6"/>
-    <rect x="74" y="70" width="1092" height="1610" rx="26" fill="#fffdf8" stroke="#ddd3c1" stroke-width="3"/>
-    <text x="110" y="150" font-family="Arial, sans-serif" font-size="26" font-weight="700" fill="#c26a3a">Sayfa ${index + 1}</text>
-    <text x="110" y="235" font-family="Arial, sans-serif" font-size="52" font-weight="800" fill="#24302f">${svgEscape(page.title)}</text>
-    ${textLines.map((line) => `<text x="110" y="${line.y}" font-family="Arial, sans-serif" font-size="${line.size}" fill="${line.color}">${svgEscape(line.text)}</text>`).join("")}
-    <rect x="110" y="${calloutY}" width="1018" height="150" rx="18" fill="#dceee8"/>
-    ${wrapText(page.callout, 76).slice(0, 3).map((line, lineIndex) => `<text x="140" y="${calloutY + 55 + lineIndex * 38}" font-family="Arial, sans-serif" font-size="27" font-weight="700" fill="#214f4a">${svgEscape(line)}</text>`).join("")}
-    <text x="620" y="900" text-anchor="middle" font-family="Arial, sans-serif" font-size="108" font-weight="900" fill="#24302f" opacity=".14" transform="rotate(-28 620 900)">${svgEscape(watermark)}</text>
-  </svg>`;
-}
-
-function loadSvgImage(svg) {
-  return new Promise((resolve, reject) => {
-    const image = new Image();
-    const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml;charset=utf-8" }));
-    image.onload = () => {
-      URL.revokeObjectURL(url);
-      resolve(image);
-    };
-    image.onerror = () => {
-      URL.revokeObjectURL(url);
-      reject(new Error("PDF sayfası oluşturulamadı."));
-    };
-    image.src = url;
-  });
-}
-
-function buildImagePdf(images) {
-  const encoder = new TextEncoder();
-  const chunks = [];
-  const offsets = [0];
-  let length = 0;
-  const pushText = (text) => {
-    const bytes = encoder.encode(text);
-    chunks.push(bytes);
-    length += bytes.length;
-  };
-  const pushBytes = (bytes) => {
-    chunks.push(bytes);
-    length += bytes.length;
-  };
-
-  const objects = [];
-  const addObject = (parts) => {
-    objects.push(parts);
-    return objects.length;
-  };
-  const pageIds = [];
-
-  images.forEach((image) => {
-    const imageId = addObject([`<< /Type /XObject /Subtype /Image /Width ${image.width} /Height ${image.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${image.data.length} >>\nstream\n`, image.data, "\nendstream"]);
-    const stream = `q\n595 0 0 842 0 0 cm\n/Im1 Do\nQ`;
-    const contentId = addObject([`<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`]);
-    const pageId = addObject([`<< /Type /Page /Parent 0 0 R /MediaBox [0 0 595 842] /Resources << /XObject << /Im1 ${imageId} 0 R >> >> /Contents ${contentId} 0 R >>`]);
-    pageIds.push(pageId);
-  });
-
-  const pagesId = addObject([`<< /Type /Pages /Kids [${pageIds.map((pageId) => `${pageId} 0 R`).join(" ")}] /Count ${pageIds.length} >>`]);
-  pageIds.forEach((pageId) => {
-    objects[pageId - 1][0] = objects[pageId - 1][0].replace("/Parent 0 0 R", `/Parent ${pagesId} 0 R`);
-  });
-  const catalogId = addObject([`<< /Type /Catalog /Pages ${pagesId} 0 R >>`]);
-
-  pushText("%PDF-1.4\n");
-  objects.forEach((parts, index) => {
-    offsets.push(length);
-    pushText(`${index + 1} 0 obj\n`);
-    parts.forEach((part) => (typeof part === "string" ? pushText(part) : pushBytes(part)));
-    pushText("\nendobj\n");
-  });
-  const xref = length;
-  pushText(`xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`);
-  offsets.slice(1).forEach((offset) => pushText(`${String(offset).padStart(10, "0")} 00000 n \n`));
-  pushText(`trailer\n<< /Size ${objects.length + 1} /Root ${catalogId} 0 R >>\nstartxref\n${xref}\n%%EOF`);
-  return concatBytes(chunks, length);
 }
 
 function wrapText(text, max) {
@@ -4044,9 +5096,19 @@ function reportNote(noteId) {
   alert("Şikayet admin paneline iletildi.");
 }
 
-function moderateNote(noteId, status) {
+async function moderateNote(noteId, status) {
   const note = state.notes.find((item) => item.id === noteId);
-  if (note) note.status = status;
+  if (!note) return;
+  if (window.NotumSupabase?.isConfigured) {
+    try {
+      await window.NotumSupabase.updateNoteStatus(noteId, status);
+    } catch (error) {
+      console.error("Not durumu Supabase'e kaydedilemedi", { noteId, status, error });
+      alert(error.message || "Not durumu kaydedilemedi. Lütfen tekrar deneyin.");
+      return;
+    }
+  }
+  note.status = status;
   saveState();
   render();
 }
@@ -4178,27 +5240,33 @@ function readProfileImage(file) {
 async function saveProfile(event) {
   event.preventDefault();
   const user = currentUser();
+  if (!user) return;
   const data = new FormData(event.currentTarget);
   const email = data.get("email").trim();
   if (!canUseProfileEmail(email, user?.role)) {
     alert("Admin disindaki hesaplarda edu uzantili ogrenci e-postasi kullanilmali.");
     return;
   }
-  user.name = data.get("name").trim();
-  user.email = email;
-  user.university = data.get("university").trim();
-  user.department = data.get("department").trim();
-  user.bio = data.get("bio")?.trim() || user.bio;
+  const updatedUser = {
+    ...user,
+    name: data.get("name").trim(),
+    email,
+    university: data.get("university").trim(),
+    department: data.get("department").trim(),
+    bio: data.get("bio")?.trim() || user.bio
+  };
   const avatar = data.get("avatar");
-  if (data.get("removeAvatar")) user.avatarData = "";
-  if (avatar instanceof File && avatar.size) user.avatarData = await readProfileImage(avatar);
-  user.eduVerified = isStudentEmail(user.email) && user.emailVerified;
+  if (data.get("removeAvatar")) updatedUser.avatarData = "";
+  if (avatar instanceof File && avatar.size) updatedUser.avatarData = await readProfileImage(avatar);
+  updatedUser.eduVerified = isStudentEmail(updatedUser.email) && updatedUser.emailVerified;
   try {
-    await window.NotumSupabase?.saveProfile?.(user);
+    await window.NotumSupabase?.saveProfile?.(updatedUser);
   } catch (error) {
     alert(error.message || "Profil Supabase'e kaydedilemedi.");
     return;
   }
+  Object.assign(user, updatedUser);
+  profilePanel = "overview";
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   render();
 }

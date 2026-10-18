@@ -17,6 +17,7 @@ Ardından tarayıcıda `http://localhost:4173` adresini açın.
 ## Hazır Demo Hesaplar
 
 Bu hesaplar sadece yerel demo içindir.
+Supabase bağlantısı yapılandırılmışsa bu demo hesapları kullanılamaz; gerçek Supabase Auth hesabıyla giriş yapın.
 
 - Öğrenci: `sila@ogr.edu.tr` / `123456`
 - Satıcı: `berkay@ogr.edu.tr` / `123456`
@@ -35,7 +36,11 @@ Bu hesaplar sadece yerel demo içindir.
 - Yükleme sırasında küçük önizleme/seçim arayüzü
 - PDF yüklemede sayfa sayısını dosyadan okuma
 - Dosyası olmayan notlarda PDF, DOCX, PPTX ve TXT çıktıları üretme
-- Sepet ve ödeme akışı
+- Sepet, referans kodlu banka havalesi ve dekont onay akışı
+- Satıcı IBAN bilgileri, mock satışlar dahil beklenen komisyon sonrası kazanç ve haftalık ödeme takibi
+- Tarayıcıda PDF/görsel dekont OCR ön kontrolü, okunan açıklama/tutar gösterimi ve admin son onayı
+- Mock siparişlerde doğru ve yanlış örnek dekontla OCR testi
+- Admin için dekont inceleme ve açıkça işaretlenmiş mock ödeme/dekont testi
 - Satın alınan notlar, favoriler ve yorumlar
 - Kullanıcının kendi yorumunu silebilmesi
 - Satıcı paneli ve admin paneli
@@ -44,7 +49,7 @@ Bu hesaplar sadece yerel demo içindir.
 
 ## Veri Modeli
 
-Uygulama yerel veri saklama için `localStorage` kullanır. İlişkisel veritabanı taslağı `src/schema.sql` içindedir.
+Uygulama yerel veri saklama için `localStorage` kullanır. Supabase kurulum ve ödeme akışı yönergeleri `SUPABASE.md`, veritabanı şeması ise `supabase/schema.sql` içindedir. Supabase ile ödeme özelliklerini açmadan önce schema SQL'ini Supabase SQL Editor'da çalıştırın.
 
 ## Program Kataloğu
 
