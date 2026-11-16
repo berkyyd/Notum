@@ -1,6 +1,7 @@
 const STORAGE_KEY = "notum_mvp_state_v7";
 const THEME_KEY = "notum_theme";
 const PROGRAM_CATALOG_URL = "src/data/yokatlas-programs.json";
+const LEGAL_VERSION = "2026-11-16-draft-1";
 
 if (window.pdfjsLib) {
   window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
@@ -491,7 +492,8 @@ const storedOfficePreviewCache = new Map();
 let theme = localStorage.getItem(THEME_KEY) || "light";
 let profilePanel = "overview";
 let profileDiscoverPage = 0;
-let marketInsightIndex = { note: 0, book: 0 };
+let marketInsightIndex = { note: 0 };
+let homeCommunityIndex = 0;
 let adminUserFilters = { query: "", university: "", department: "", role: "", sort: "new" };
 let badgeModalUserId = null;
 let avatarModalUserId = null;
@@ -503,7 +505,7 @@ function routeFromLocation() {
   const parts = window.location.hash.replace(/^#\/?/, "").split("/").filter(Boolean);
   const page = parts[0] || "home";
   const id = parts[1] ? decodeURIComponent(parts[1]) : undefined;
-  const simplePages = new Set(["home", "notes", "books", "auth", "upload", "cart", "student", "seller", "admin", "profile"]);
+  const simplePages = new Set(["home", "notes", "auth", "upload", "cart", "student", "seller", "admin", "profile"]);
   if (simplePages.has(page)) return { page };
   if (["detail", "edit", "user"].includes(page) && id) return { page, id };
   return { page: "home" };
@@ -536,6 +538,7 @@ function loadState() {
 }
 
 function normalizeState(nextState) {
+  nextState.legalAcceptances ||= [];
   nextState.follows ||= [{ followerId: "u-student", followingId: "u-seller" }];
   nextState.purchases ||= [];
   nextState.sellerSalesSummaries ||= [];
@@ -583,11 +586,8 @@ function normalizeState(nextState) {
     user.badgeOverrides ||= [];
   });
   nextState.notes.forEach((note) => {
-    note.materialType ||= "note";
+    note.materialType = "note";
   });
-  if (!nextState.notes.some((note) => note.materialType === "book")) {
-    nextState.notes.push(...sampleBooks());
-  }
   return nextState;
 }
 
@@ -620,16 +620,13 @@ function normalizeDemoCatalogFields() {
     user.bio = `${user.department || "Üniversite"} materyallerini keşfediyor ve paylaşıyor.`;
   });
 
-  const materialPlans = [
+  const notePlans = [
     ["n-1", "İSTANBUL TEKNİK", "Bilgisayar Mühendisliği"],
     ["n-2", "BOĞAZİÇİ", "İktisat"],
     ["n-3", "ANKARA ÜNİVERSİTESİ", "Hukuk"],
-    ["n-4", "EGE ÜNİVERSİTESİ", "Kimya"],
-    ["b-1", "İSTANBUL TEKNİK", "Bilgisayar Mühendisliği"],
-    ["b-2", "BOĞAZİÇİ", "İktisat"],
-    ["b-3", "ANKARA ÜNİVERSİTESİ", "Hukuk"]
+    ["n-4", "EGE ÜNİVERSİTESİ", "Kimya"]
   ];
-  materialPlans.forEach(([noteId, university, department]) => {
+  notePlans.forEach(([noteId, university, department]) => {
     const note = state.notes.find((item) => item.id === noteId);
     const match = catalogMatch(university, department);
     if (note && match) applyCatalogFields(note, match);
@@ -694,6 +691,27 @@ function applyCatalogFields(target, catalogItem) {
 function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   window.NotumSupabase?.saveState(state);
+}
+
+function makeLegalAcceptanceRecords(userId, documentKeys) {
+  const acceptedAt = new Date().toISOString();
+  return documentKeys.map((documentKey) => ({
+    id: id("legal"),
+    userId,
+    documentKey,
+    version: LEGAL_VERSION,
+    acceptedAt
+  }));
+}
+
+async function saveLegalAcceptances(user, documentKeys) {
+  const records = makeLegalAcceptanceRecords(user.id, documentKeys);
+  if (window.NotumSupabase?.isConfigured) {
+    await window.NotumSupabase.recordLegalAcceptances(records);
+  } else {
+    state.legalAcceptances.push(...records);
+    saveState();
+  }
 }
 
 function id(prefix) {
@@ -802,97 +820,15 @@ function isSeedNote(note) {
 }
 
 function materialType(note) {
-  return note?.materialType === "book" ? "book" : "note";
+  return "note";
 }
 
 function isBook(note) {
-  return materialType(note) === "book";
+  return false;
 }
 
 function materialLabel(note) {
-  return isBook(note) ? "Kitap" : "Not";
-}
-
-function sampleBooks() {
-  return [
-    {
-      id: "b-1",
-      sellerId: "u-seller",
-      materialType: "book",
-      title: "Calculus Early Transcendentals - 2. El",
-      description: "Temiz kullanılmış, kenarlarında küçük notlar olan mühendislik matematiği kitabı.",
-      university: "İstanbul Teknik Üniversitesi",
-      faculty: "Bilgisayar ve Bilişim Fakültesi",
-      department: "Bilgisayar Mühendisliği",
-      course: "Matematik I",
-      instructor: "Ders kitabı",
-      condition: "İyi",
-      fileType: "2. EL",
-      price: 420,
-      status: "approved",
-      sales: 2,
-      views: 16,
-      createdAt: "2026-06-20",
-      aiSummary: "Mühendislik bölümleri için temel calculus kitabı. İkinci el, temiz ve kullanıma hazır.",
-      bookImages: bookPlaceholderImages("Calculus", "#2f6f73", "#f8c36b")
-    },
-    {
-      id: "b-2",
-      sellerId: "u-seller",
-      materialType: "book",
-      title: "Mikro İktisat Çalışma Kitabı",
-      description: "Vize ve final hazırlığı için çözümlü soru kitabı. 2. el, sayfaları eksiksiz.",
-      university: "Boğaziçi Üniversitesi",
-      faculty: "İktisadi ve İdari Bilimler Fakültesi",
-      department: "İktisat",
-      course: "Mikro İktisat",
-      instructor: "Yardımcı kaynak",
-      condition: "Çok iyi",
-      fileType: "2. EL",
-      price: 260,
-      status: "approved",
-      sales: 1,
-      views: 11,
-      createdAt: "2026-06-24",
-      aiSummary: "Çözümlü sorularla mikro iktisat pratiği yapmak isteyen öğrenciler için uygun ikinci el kaynak.",
-      bookImages: bookPlaceholderImages("Mikro", "#6957c2", "#30d5c8")
-    },
-    {
-      id: "b-3",
-      sellerId: "u-student",
-      materialType: "book",
-      title: "Hukuka Giriş Temel Kavramlar",
-      description: "Hukuk fakültesi birinci sınıf için temel kavram kitabı. Kapakta hafif kullanım izi var.",
-      university: "Ankara Üniversitesi",
-      faculty: "Hukuk Fakültesi",
-      department: "Hukuk",
-      course: "Hukuka Giriş",
-      instructor: "Ders kitabı",
-      condition: "Orta",
-      fileType: "2. EL",
-      price: 185,
-      status: "approved",
-      sales: 0,
-      views: 8,
-      createdAt: "2026-06-28",
-      aiSummary: "Hukuka giriş dersi için temel kavramları takip etmeye yarayan uygun fiyatlı ikinci el kitap.",
-      bookImages: bookPlaceholderImages("Hukuk", "#8f4724", "#f4d6b6")
-    }
-  ];
-}
-
-function bookPlaceholderImages(title, primary, secondary) {
-  return [1, 2, 3].map((index) => {
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="720" height="920" viewBox="0 0 720 920">
-      <rect width="720" height="920" rx="34" fill="${primary}"/>
-      <rect x="74" y="76" width="572" height="768" rx="24" fill="${secondary}" opacity=".92"/>
-      <rect x="116" y="132" width="488" height="70" rx="14" fill="#fff" opacity=".9"/>
-      <rect x="116" y="244" width="488" height="420" rx="20" fill="#fff" opacity=".76"/>
-      <text x="360" y="178" text-anchor="middle" font-family="Arial, sans-serif" font-size="42" font-weight="700" fill="#172033">${title}</text>
-      <text x="360" y="733" text-anchor="middle" font-family="Arial, sans-serif" font-size="32" font-weight="700" fill="#172033">Görsel ${index}</text>
-    </svg>`;
-    return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
-  });
+  return "Not";
 }
 
 function unique(items, key) {
@@ -979,22 +915,6 @@ function updateDatalist(idValue, values) {
   });
 }
 
-function bindNoteCardEvents(root) {
-  root.querySelectorAll("[data-detail]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const note = state.notes.find((item) => item.id === button.dataset.detail);
-      if (note) {
-        note.views = (note.views || 0) + 1;
-        saveState();
-      }
-      navigate({ page: "detail", id: button.dataset.detail });
-    });
-  });
-  root.querySelectorAll("[data-favorite]").forEach((button) => {
-    button.addEventListener("click", () => toggleFavorite(button.dataset.favorite));
-  });
-}
-
 function bindCatalogInputs() {
   document.querySelectorAll('[data-action="upload"], [data-action="edit-note"], [data-action="profile"]').forEach((form) => {
     const university = form.elements.university;
@@ -1054,8 +974,7 @@ function render() {
       <nav class="nav">
         ${navButton("home", "Anasayfa")}
         ${navButton("notes", "Notlar")}
-        ${navButton("books", "Kitaplar")}
-        ${navButton("upload", "Materyal Yükle")}
+        ${navButton("upload", "Not Yükle")}
         ${navButton("student", "Panelim")}
         ${navButton("seller", "Satışlarım")}
         ${user?.role === "admin" ? navButton("admin", "Admin") : ""}
@@ -1073,15 +992,47 @@ function render() {
       </div>
     </header>
     <main>${page()}</main>
+    ${legalFooter()}
     ${avatarModalUser ? avatarModal(avatarModalUser) : ""}
   `;
   bindEvents();
+  if (route.page === "notes") updateNoteSearchResults();
+}
+
+function legalFooter() {
+  return `
+    <footer class="legal-footer">
+      <div class="legal-footer-main">
+        <a class="legal-footer-brand" href="#/" aria-label="Notum ana sayfa">
+          <img src="src/notum-icon.png" alt="" />
+          <span><strong>Notum</strong><small>Öğrenciler için bilgi paylaşım alanı</small></span>
+        </a>
+        <p>Notlarını keşfet, birikimini paylaş ve öğrenci topluluğuna katkı sağla.</p>
+        <span class="legal-footer-copyright">© ${new Date().getFullYear()} Notum</span>
+      </div>
+      <div class="legal-footer-column">
+        <h2>Yasal bilgiler</h2>
+        <a href="legal.html#privacy">KVKK Aydınlatma</a>
+        <a href="legal.html#terms">Kullanım Koşulları</a>
+        <a href="legal.html#seller">Satıcı Sözleşmesi</a>
+        <a href="legal.html#buyer">Alıcı Bilgilendirmesi</a>
+        <a href="legal.html#distance-sale">Mesafeli Satış Sözleşmesi</a>
+        <a href="legal.html#cookies">Çerez ve Yerel Depolama</a>
+      </div>
+      <div class="legal-footer-column legal-footer-contact">
+        <h2>İletişim</h2>
+        <p>Destek ve başvuruların için bize e-posta gönderebilirsin.</p>
+        <a class="legal-footer-email" href="mailto:bdemircanli15@gmail.com">
+          <span aria-hidden="true">✉</span> bdemircanli15@gmail.com
+        </a>
+      </div>
+    </footer>
+  `;
 }
 
 function page() {
   if (route.page === "detail") return detailPage(route.id);
   if (route.page === "notes") return notesPage();
-  if (route.page === "books") return booksPage();
   if (route.page === "auth") return authPage();
   if (route.page === "upload") return uploadPage();
   if (route.page === "cart") return cartPage();
@@ -1098,19 +1049,25 @@ function homePage() {
   return `
     <section class="hero">
       <div class="hero-copy">
-        <p class="eyebrow">Öğrencilerden öğrencilere</p>
-        <h1 class="stacked-hero-title"><span>Network</span><span>of</span><span>Trusted</span><span>University</span><span>Materials</span></h1>
+        <p class="hero-kicker">Notum <span>·</span> Üniversite notları</p>
+        <h1>Kampüsten bilgi,<br /><span>tek tıkla.</span></h1>
+        <p class="hero-lead">Dersine gerçekten çalışan öğrencilerin notlarını keşfet. Kendi birikimini paylaş, emeğin kazanca dönüşsün.</p>
+        <div class="hero-actions">
+          <button class="primary" data-route="notes">Notları keşfet <span aria-hidden="true">↗</span></button>
+          <button class="hero-secondary" data-route="upload">Notunu paylaş <span aria-hidden="true">＋</span></button>
+        </div>
+        <div class="hero-proof"><span class="hero-proof-mark">✦</span> Öğrencilerin emeği, öğrencilerin geleceği</div>
       </div>
-      ${heroStudentDiscovery()}
+      ${heroCommunityCarousel()}
     </section>
     <section class="home-intro">
       <div>
         <h2>Paylaş, keşfet, kazan.</h2>
-        <p>Öğrenciler kendi hazırladığı materyalleri veya artık kullanmadığı kitapları yükler; diğer öğrenciler bölüm, ders, hoca ve üniversiteye göre kolayca arar.</p>
+        <p>Öğrenciler kendi hazırladığı notları yükler; diğer öğrenciler bölüm, ders, hoca ve üniversiteye göre kolayca arar.</p>
       </div>
       <div class="home-intro-grid">
         <article><strong>Güvenli katalog</strong><span>Onay, şikayet ve yorum akışıyla daha temiz bir pazar.</span></article>
-        <article><strong>Akıllı filtreler</strong><span>Not ve kitaplarda aynı arama deneyimi.</span></article>
+        <article><strong>Akıllı filtreler</strong><span>Notlarda aynı arama deneyimi.</span></article>
         <article><strong>Öğrenci odaklı</strong><span>Satıcı profili, favori, sepet ve satış paneli tek yerde.</span></article>
       </div>
     </section>
@@ -1119,7 +1076,8 @@ function homePage() {
 
 function notesPage() {
   const notes = filteredNotes("note");
-  const approved = approvedNotes().filter((note) => !isBook(note));
+  const allNotes = approvedNotes().filter((note) => materialType(note) === "note");
+  const approved = approvedNotes();
   return `
     <section class="market-hero compact-market-hero">
       <p class="eyebrow">Notlar</p>
@@ -1129,7 +1087,6 @@ function notesPage() {
       <div class="market-toolbar">
         <form class="search-panel" data-action="search" data-market-type="note">
           <input name="query" value="${escapeHtml(filters.query)}" placeholder="Ders, hoca, bölüm veya not ara" />
-          <select name="university">${selectOptions("Üniversite seç", catalogValues("university"), filters.university)}</select>
           <button class="primary" type="submit">Ara</button>
         </form>
       </div>
@@ -1138,9 +1095,10 @@ function notesPage() {
           <h2>Filtreler</h2>
           <button class="ghost small" data-reset>Filtreleri temizle</button>
         </div>
+        ${filterSelect("university", "Üniversite", catalogValues("university"))}
         ${filterSelect("department", "Bölüm", catalogValues("department"))}
-        ${filterSelect("course", "Ders", unique(state.notes.filter((note) => !isBook(note)), "course"))}
-        ${filterSelect("instructor", "Hoca", unique(state.notes.filter((note) => !isBook(note)), "instructor"))}
+        ${filterSelect("course", "Ders", unique(state.notes, "course"))}
+        ${filterSelect("instructor", "Hoca", unique(state.notes, "instructor"))}
         <label>Fiyat aralığı
           <select data-filter="price">${selectOptions("Tüm fiyatlar", ["0-100", "100-150", "150+"], filters.price)}</select>
         </label>
@@ -1156,52 +1114,7 @@ function notesPage() {
         <div class="section-head">
           <div><h2>Yayındaki notlar</h2><p data-note-result-count>${notes.length} onaylı materyal listeleniyor</p></div>
         </div>
-        <div class="note-grid">${notes.map(noteCard).join("") || empty("Aradığın kriterlerde not bulunamadı.")}</div>
-      </section>
-    </section>
-  `;
-}
-
-function booksPage() {
-  const books = filteredNotes("book");
-  const approved = approvedNotes().filter(isBook);
-  return `
-    <section class="market-hero compact-market-hero">
-      <p class="eyebrow">Kitaplar</p>
-      ${marketInsightCarousel("book", approved)}
-    </section>
-    <section class="market-shell">
-      <div class="market-toolbar">
-        <form class="search-panel" data-action="search" data-market-type="book">
-          <input name="query" value="${escapeHtml(filters.query)}" placeholder="Kitap, ders, bölüm veya kaynak ara" />
-          <select name="university">${selectOptions("Üniversite seç", catalogValues("university"), filters.university)}</select>
-          <button class="primary" type="submit">Ara</button>
-        </form>
-      </div>
-      <aside class="filters">
-        <div class="filters-head">
-          <h2>Filtreler</h2>
-          <button class="ghost small" data-reset>Filtreleri temizle</button>
-        </div>
-        ${filterSelect("department", "Bölüm", catalogValues("department"))}
-        ${filterSelect("course", "Ders", unique(state.notes.filter(isBook), "course"))}
-        ${filterSelect("instructor", "Kaynak türü", unique(state.notes.filter(isBook), "instructor"))}
-        <label>Fiyat aralığı
-          <select data-filter="price">${selectOptions("Tüm fiyatlar", ["0-100", "100-150", "150+"], filters.price)}</select>
-        </label>
-        <label>Sıralama
-          <select data-filter="sort">
-            <option value="new" ${filters.sort === "new" ? "selected" : ""}>En yeni kitaplar</option>
-            <option value="best" ${filters.sort === "best" ? "selected" : ""}>En çok satanlar</option>
-            <option value="rated" ${filters.sort === "rated" ? "selected" : ""}>En yüksek puanlılar</option>
-          </select>
-        </label>
-      </aside>
-      <section class="catalog">
-        <div class="section-head">
-          <div><h2>Yayındaki kitaplar</h2><p>${books.length} onaylı kitap listeleniyor</p></div>
-        </div>
-        <div class="note-grid">${books.map(noteCard).join("") || empty("Aradığın kriterlerde kitap bulunamadı.")}</div>
+        <div class="note-grid">${allNotes.map(noteCard).join("")}<div class="note-search-empty empty" ${notes.length ? "hidden" : ""}>Aradığın kriterlerde not bulunamadı.</div></div>
       </section>
     </section>
   `;
@@ -1232,7 +1145,7 @@ function marketInsightCarousel(type, items) {
             .join("")}
         </div>
       </div>
-      <div class="market-dots" aria-label="${type === "book" ? "Kitap" : "Not"} bilgi kartları">
+      <div class="market-dots" aria-label="Not bilgi kartları">
         ${insights
           .map(
             (_, index) => `
@@ -1258,8 +1171,8 @@ function setMarketInsight(type, nextIndex) {
 }
 
 function marketInsights(type, items) {
-  const label = type === "book" ? "kitap" : "not";
-  const plural = type === "book" ? "kitaplar" : "notlar";
+  const label = "not";
+  const plural = "notlar";
   const latest = [...items].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
   const topSeller = [...items].sort((a, b) => (b.sales || 0) - (a.sales || 0))[0];
   const mostReviewed = [...items].sort((a, b) => noteReviews(b.id).length - noteReviews(a.id).length)[0];
@@ -1358,52 +1271,70 @@ function topMarketValue(items, key) {
     .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, "tr"))[0];
 }
 
-function heroTrendCard(note) {
-  if (!note) {
-    return `
-      <span>Henüz trend yok</span>
-      <strong>İlk materyali sen yükle</strong>
-      <small>Onaylı materyal geldiğinde burada gerçek trend gösterilecek.</small>
-    `;
+function heroCommunityCarousel() {
+  const notes = approvedNotes()
+    .sort((a, b) => noteSalesCount(b) - noteSalesCount(a) || new Date(b.createdAt) - new Date(a.createdAt));
+  const students = state.users
+    .filter((user) => user.role === "student")
+    .sort((a, b) => materialCount(b) - materialCount(a) || a.name.localeCompare(b.name, "tr"));
+  const slides = [];
+  const count = Math.max(notes.length, students.length);
+  for (let index = 0; index < count && slides.length < 8; index += 1) {
+    if (notes[index]) slides.push({ type: "note", note: notes[index] });
+    if (students[index]) slides.push({ type: "student", user: students[index] });
   }
+  if (!slides.length) return "";
+  const activeIndex = Math.min(homeCommunityIndex, slides.length - 1);
+  homeCommunityIndex = activeIndex;
   return `
-    <span>Öğrencilerden öğrencilere</span>
-    <strong>${escapeHtml(note.course)}</strong>
-    <small>${money(note.price)} · ${noteSalesCount(note)} satış</small>
-  `;
-}
-
-function heroStudentDiscovery() {
-  const students = state.users.filter((user) => user.role === "student");
-  if (!students.length) return "";
-  return `
-    <div class="student-discovery">
-      <img class="student-discovery-logo" src="src/son-logo-renk-degisti.png" alt="Notum" />
-      <div class="student-carousel" data-student-carousel>
-        <div class="student-carousel-stage" style="--student-count:${students.length}">
-          ${students.map((user, index) => heroStudentCard(user, index, students.length)).join("")}
+    <section class="home-community" data-home-carousel aria-label="Öğrenci notları ve profilleri">
+      <div class="home-community-heading"><span><i></i> KAMPÜSTEN SEÇKİLER</span><strong>Bir sonraki favorin burada.</strong></div>
+      <div class="home-community-window">
+        <div class="home-community-track" data-home-track style="transform:translateX(-${activeIndex * 100}%);">
+          ${slides.map((slide, index) => heroCommunitySlide(slide, index)).join("")}
         </div>
       </div>
-    </div>
+      <div class="home-community-controls">
+        <div class="home-community-dots" aria-label="Seçkiler arasında gezin">
+          ${slides.map((_, index) => `<button class="${index === activeIndex ? "active" : ""}" data-home-dot="${index}" aria-label="${index + 1}. seçki"></button>`).join("")}
+        </div>
+        <div class="home-community-arrows">
+          <button type="button" data-home-prev aria-label="Önceki seçki">←</button>
+          <button type="button" data-home-next aria-label="Sonraki seçki">→</button>
+        </div>
+      </div>
+    </section>
   `;
 }
 
-function heroStudentCard(user, index, total) {
-  const angle = Math.round((360 / Math.max(total, 1)) * index);
-  const followers = followerCount(user);
-  const following = followingCount(user);
-  const materials = materialCount(user);
+function heroCommunitySlide(slide, index) {
+  if (slide.type === "note") {
+    const note = slide.note;
+    const author = state.users.find((user) => user.id === note.sellerId);
+    return `
+      <article class="home-feed-card note-feed-card" style="--feed-index:${index}">
+        <button class="home-feed-main" data-detail="${note.id}" aria-label="${escapeHtml(note.title)} notunu görüntüle">
+          <span class="feed-card-top"><span class="feed-file">${escapeHtml(note.fileType || "NOT")}</span><span class="feed-rating">${rating(note.id)} <i>★</i></span></span>
+          <span class="feed-paper-art" aria-hidden="true"><i></i><i></i><i></i><i></i><b>${escapeHtml((note.course || "DERS").slice(0, 1))}</b></span>
+          <span class="feed-note-copy"><small>${escapeHtml(note.course || note.department || "Ders notu")}</small><strong>${escapeHtml(note.title)}</strong><span>${escapeHtml(note.university)}</span></span>
+          <span class="feed-note-footer"><b>${money(note.price)}</b><span>Notu incele <i>↗</i></span></span>
+        </button>
+        ${author ? `<button class="feed-author" data-user-profile="${author.id}">${profileAvatar(author)}<span><small>ÖĞRENCİ NOTU</small><strong>${escapeHtml(author.name)}</strong></span><i>↗</i></button>` : ""}
+      </article>
+    `;
+  }
+  const user = slide.user;
   return `
-    <button class="student-profile-card" data-user-profile="${user.id}" data-student-card="${index}" style="--card-angle:${angle}deg">
-      ${profileAvatar(user)}
-      <strong>${escapeHtml(user.name)}</strong>
-      <small>${escapeHtml(user.university || "Üniversite")}</small>
-      <div class="student-card-stats">
-        <span><b>${followers}</b><em>Takipçi</em></span>
-        <span><b>${following}</b><em>Takip</em></span>
-        <span><b>${materials}</b><em>Materyal</em></span>
-      </div>
-    </button>
+    <article class="home-feed-card student-feed-card" style="--feed-index:${index}">
+      <button class="student-feed-main" data-user-profile="${user.id}" aria-label="${escapeHtml(user.name)} profilini görüntüle">
+        <span class="student-feed-glow" aria-hidden="true"></span>
+        <span class="student-feed-label"><i></i> TOPLULUKTAN</span>
+        ${profileAvatar(user)}
+        <strong>${escapeHtml(user.name)}</strong>
+        <span class="student-feed-university">${escapeHtml(user.university || "Üniversite öğrencisi")}</span>
+        <span class="student-feed-stat"><b>${materialCount(user)}</b> paylaşılan not <i>↗</i></span>
+      </button>
+    </article>
   `;
 }
 
@@ -1434,13 +1365,19 @@ function filteredNotes(type = "note") {
 }
 
 function updateNoteSearchResults() {
-  const notes = filteredNotes();
+  const visibleNoteIds = new Set(filteredNotes().map((note) => note.id));
   const count = document.querySelector("[data-note-result-count]");
   const grid = document.querySelector(".note-grid");
-  if (count) count.textContent = `${notes.length} onaylı materyal listeleniyor`;
   if (!grid) return;
-  grid.innerHTML = notes.map(noteCard).join("") || empty("Aradığın kriterlerde not bulunamadı.");
-  bindNoteCardEvents(grid);
+  let visibleCount = 0;
+  grid.querySelectorAll(".note-card[data-note-id]").forEach((card) => {
+    const isVisible = visibleNoteIds.has(card.dataset.noteId);
+    card.hidden = !isVisible;
+    if (isVisible) visibleCount += 1;
+  });
+  if (count) count.textContent = `${visibleCount} onaylı materyal listeleniyor`;
+  const emptyMessage = grid.querySelector(".note-search-empty");
+  if (emptyMessage) emptyMessage.hidden = visibleCount > 0;
 }
 
 function updateAdminUserSearchResults() {
@@ -1473,10 +1410,9 @@ function sortedNoteReviews(noteId) {
 
 function noteCard(note) {
   return `
-    <article class="note-card ${isBook(note) ? "book-card" : ""}">
-      <button class="favorite ${isFavorite(note.id) ? "active" : ""}" data-favorite="${note.id}" aria-label="Favori">♡</button>
+    <article class="note-card" data-note-id="${escapeHtml(note.id)}">
+      <button class="favorite ${isFavorite(note.id) ? "active" : ""}" data-favorite="${note.id}" aria-pressed="${isFavorite(note.id)}" aria-label="${isFavorite(note.id) ? "Favorilerden kaldır" : "Favorilere ekle"}">${isFavorite(note.id) ? "♥" : "♡"}</button>
       <div class="file-badge">${note.fileType}</div>
-      ${isBook(note) ? bookThumbs(note) : ""}
       <h3>${escapeHtml(note.title)}</h3>
       <p>${escapeHtml(note.course)} · ${escapeHtml(note.department)}</p>
       <p class="muted">${escapeHtml(note.university)}</p>
@@ -1489,33 +1425,27 @@ function noteCard(note) {
   `;
 }
 
-function bookThumbs(note) {
-  const images = (note.bookImages || []).slice(0, 3);
-  return `<div class="book-thumbs">${images.map((image, index) => `<img src="${escapeHtml(image)}" alt="${escapeHtml(note.title)} görsel ${index + 1}" />`).join("")}</div>`;
-}
-
 function detailPage(noteId) {
   const note = state.notes.find((item) => item.id === noteId);
   if (!note) return empty("Materyal bulunamadı.");
   const user = currentUser();
   const purchased = user && hasPurchased(user.id, note.id);
-  const reviews = noteReviews(note.id);
   const sortedReviews = sortedNoteReviews(note.id);
   return `
     <section class="detail-layout">
       <div class="preview">
         <div class="preview-head">
           <span class="file-badge">${note.fileType}</span>
-          <div><strong>${isBook(note) ? "Kitap görselleri" : "Önizleme"}</strong><small>${isBook(note) ? "Satıcının yüklediği 3 kitap görseli gösteriliyor" : `Satıcının seçtiği ${getPreviewPages(note).length} sayfa gösteriliyor`}</small></div>
+          <div><strong>Önizleme</strong><small>Satıcının seçtiği ${getPreviewPages(note).length} sayfa gösteriliyor</small></div>
         </div>
-        <div class="preview-pages ${hasOriginalFile(note) && note.fileType === "PDF" ? "pdf-detail-pages" : ""}">${isBook(note) ? bookGallery(note) : previewPages(note).join("")}</div>
+        <div class="preview-pages ${hasOriginalFile(note) && note.fileType === "PDF" ? "pdf-detail-pages" : ""}">${previewPages(note).join("")}</div>
         <div class="copyright">
           <strong>Telif uyarısı</strong>
-          <p>${isBook(note) ? "Yükleyen kullanıcı kitap görsellerinin gerçek ürünü temsil ettiğini ve satış sorumluluğunu kabul eder." : "Yükleyen kullanıcı bu materyalin kendi hazırladığı özgün not olduğunu kabul eder. Şüpheli içerikler bildirilebilir."}</p>
+          <p>Yükleyen kullanıcı bu materyalin kendi hazırladığı özgün not olduğunu kabul eder. Şüpheli içerikler bildirilebilir.</p>
         </div>
       </div>
       <aside class="detail-panel">
-        <button class="back" data-route="${isBook(note) ? "books" : "notes"}">← Listeye dön</button>
+        <button class="back" data-route="notes">← Listeye dön</button>
         <h1>${escapeHtml(note.title)}</h1>
         <p>${escapeHtml(note.description)}</p>
         <dl>
@@ -1523,8 +1453,7 @@ function detailPage(noteId) {
           <div><dt>Fakülte</dt><dd>${escapeHtml(note.faculty)}</dd></div>
           <div><dt>Bölüm</dt><dd>${escapeHtml(note.department)}</dd></div>
           <div><dt>Ders</dt><dd>${escapeHtml(note.course)}</dd></div>
-          <div><dt>${isBook(note) ? "Kaynak türü" : "Hoca"}</dt><dd>${escapeHtml(note.instructor)}</dd></div>
-          ${isBook(note) ? `<div><dt>Durum</dt><dd>${escapeHtml(note.condition || "2. el")}</dd></div>` : ""}
+          <div><dt>Hoca</dt><dd>${escapeHtml(note.instructor)}</dd></div>
           <div><dt>Satıcı</dt><dd>${escapeHtml(sellerName(note))}</dd></div>
           <div><dt>Yüklenme</dt><dd>${formatDate(note.createdAt)}</dd></div>
         </dl>
@@ -1532,12 +1461,10 @@ function detailPage(noteId) {
         ${detailStats(note)}
         <div class="ai-box"><strong>AI kısa açıklama</strong><p>${escapeHtml(note.aiSummary)}</p></div>
         <div class="price-line"><span>${rating(note.id)}</span><strong>${money(note.price)}</strong></div>
-        ${isBook(note) ? `<div class="original-file">Satış tipi: <strong>2. el kitap</strong></div>` : hasOriginalFile(note) ? `<div class="original-file">Orijinal dosya: <strong>${escapeHtml(note.fileName)}</strong></div>` : fallbackFormatSelect(note)}
+        ${hasOriginalFile(note) ? `<div class="original-file">Orijinal dosya: <strong>${escapeHtml(note.fileName)}</strong></div>` : fallbackFormatSelect(note)}
         ${
-          purchased && !isBook(note)
+          purchased
             ? `<button class="primary wide" data-download="${note.id}">${hasOriginalFile(note) ? "Orijinal dosyayı indir" : "Dosyayı indir"}</button>`
-            : purchased && isBook(note)
-              ? `<button class="primary wide" disabled>Satın alındı</button>`
             : `<button class="primary wide" data-add-cart="${note.id}">Sepete ekle</button>`
         }
         <button class="ghost wide" data-report="${note.id}">Şikayet et</button>
@@ -1553,14 +1480,9 @@ function detailPage(noteId) {
         </select>
       </div>
       ${purchased ? reviewForm(note.id) : ""}
-      <div class="reviews">${sortedReviews.map(reviewItem).join("") || empty(`Bu ${isBook(note) ? "kitap" : "not"} için henüz yorum yok.`)}</div>
+      <div class="reviews">${sortedReviews.map(reviewItem).join("") || empty("Bu not için henüz yorum yok.")}</div>
     </section>
   `;
-}
-
-function bookGallery(note) {
-  const images = (note.bookImages || []).slice(0, 3);
-  return `<div class="book-gallery">${images.map((image, index) => `<figure><img src="${escapeHtml(image)}" alt="${escapeHtml(note.title)} görsel ${index + 1}" /><figcaption>Görsel ${index + 1}</figcaption></figure>`).join("")}</div>`;
 }
 
 function detailStats(note) {
@@ -1724,6 +1646,8 @@ function authPage() {
         <label>Ad soyad<input name="name" autocomplete="off" required /></label>
         <label>E-posta<input name="email" type="email" autocomplete="off" required /></label>
         <label>Şifre<input name="password" type="password" autocomplete="new-password" minlength="6" required /></label>
+        <label class="check legal-consent"><input name="privacyAcknowledgement" type="checkbox" required /> <span><a href="legal.html#privacy" target="_blank" rel="noopener">KVKK Aydınlatma Metni</a>'ni okudum.</span></label>
+        <label class="check legal-consent"><input name="termsAcceptance" type="checkbox" required /> <span><a href="legal.html#terms" target="_blank" rel="noopener">Kullanım Koşulları</a>'nı okudum ve kabul ediyorum.</span></label>
         <button class="primary wide" type="submit">Hesap oluştur</button>
       </form>
     </section>
@@ -1737,21 +1661,15 @@ function uploadPage() {
     <section class="form-page">
       <form class="panel wide-panel upload-studio" data-action="upload">
         <div class="section-head">
-          <div><h1>Materyal yükle</h1><p>Not dosyanı veya 2. el kitabını ekle, bilgileri doldur ve satışa hazırla.</p></div>
+          <div><h1>Not yükle</h1><p>Not dosyanı ekle, bilgileri doldur ve satışa hazırla.</p></div>
           <span class="pill">Akıllı açıklama</span>
         </div>
         <div class="upload-steps">
-          <div><strong>Türü seç</strong><span>Not veya kitap olarak materyalini belirle.</span></div>
           <div><strong>Bilgileri doldur</strong><span>Ders, hoca, bölüm ve fiyat bilgilerini yaz.</span></div>
-          <div><strong>Görünümü hazırla</strong><span>Notta önizleme, kitapta 3 ürün görseli ekle.</span></div>
+          <div><strong>Dosyayı ekle</strong><span>PDF, DOCX, PPTX veya TXT dosyanı yükle.</span></div>
+          <div><strong>Görünümü hazırla</strong><span>Önizleme alanını ve dosya bilgilerini hazırla.</span></div>
         </div>
         <div class="form-grid">
-          <label>Materyal türü
-            <select name="materialType" data-material-type>
-              <option value="note">Not</option>
-              <option value="book">Kitap</option>
-            </select>
-          </label>
           <label>Başlık<input name="title" required /></label>
           <label>Fiyat<input name="price" type="number" min="1" value="99" required /></label>
           <label>Üniversite<input name="university" list="university-options" value="${escapeHtml(user.university || "")}" required /></label>
@@ -1762,18 +1680,6 @@ function uploadPage() {
           <label class="full file-drop" data-note-upload-only>Not dosyası
             <input name="noteFile" type="file" accept=".pdf,.docx,.pptx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation,text/plain" required />
             <span>PDF, DOCX, PPTX veya TXT dosyanı bırak. Önizleme alanı dosyaya göre hazırlanır.</span>
-          </label>
-          <label class="full file-drop material-hidden" data-book-upload-only>Kitap görselleri
-            <input name="bookImages" type="file" accept="image/*" multiple />
-            <span>Kitap yüklemek için tam 3 görsel zorunlu. Kapak, iç sayfa ve genel durum fotoğrafı ekle.</span>
-          </label>
-          <label class="material-hidden" data-book-upload-only>Kitap durumu
-            <select name="condition">
-              <option value="Çok iyi">Çok iyi</option>
-              <option value="İyi" selected>İyi</option>
-              <option value="Orta">Orta</option>
-              <option value="Yıpranmış">Yıpranmış</option>
-            </select>
           </label>
           <label>Toplam sayfa/slayt
             <input name="pageCount" type="number" min="1" max="300" placeholder="Dosyadan hesaplanır" readonly />
@@ -1787,13 +1693,13 @@ function uploadPage() {
             </div>
             <div class="source-viewer" data-source-viewer>Dosya seçildiğinde burada sayfalar açılır.</div>
           </div>
-          <div class="full book-image-preview material-hidden" data-book-upload-only data-book-image-preview>3 kitap görseli seçildiğinde burada görünür.</div>
         </div>
         ${catalogDatalists()}
         <div class="form-actions">
           <label class="check"><input name="copyright" type="checkbox" required /> Bu materyali paylaşma/satma sorumluluğunu kabul ediyorum.</label>
+          <label class="check legal-consent"><input name="sellerTermsAcceptance" type="checkbox" required /> <span><a href="legal.html#seller" target="_blank" rel="noopener">Satıcı Sözleşmesi</a>'ni okudum ve kabul ediyorum.</span></label>
           <button class="ghost" type="button" data-ai-fill>AI kısa açıklama oluştur</button>
-          <button class="primary" type="submit">Materyali yayınla</button>
+          <button class="primary" type="submit">Notu yayınla</button>
         </div>
       </form>
     </section>
@@ -1896,7 +1802,6 @@ function cartPage() {
         ${hasBankDetails ? `
           <section class="checkout-bank-details">
             <h2>Havale / EFT bilgileri</h2>
-            <p>Ödeme talimatı oluşturduktan sonra her sipariş için ayrı referans kodu alacaksın. Transfer açıklamasına bu kodu eklemen ve dekontu yüklemen gerekir.</p>
             <dl class="payment-instructions">
               <div><dt>Banka</dt><dd>${escapeHtml(settings.bankName)}</dd></div>
               <div><dt>Hesap sahibi</dt><dd>${escapeHtml(settings.accountHolder)}</dd></div>
@@ -1905,6 +1810,12 @@ function cartPage() {
           </section>
         ` : `<p class="muted">Admin henüz alıcı banka bilgilerini tanımlamadı. Ödeme talimatı oluşturulamaz.</p>`}
         ${isMockEnabled ? `<label class="check mock-payment-choice"><input type="checkbox" data-mock-payment /> Mock ödeme ile test et <small>Bu test gerçek satış veya banka transferi değildir.</small></label>` : ""}
+        <div class="checkout-legal">
+          <label class="check legal-consent"><input type="checkbox" data-legal-checkout="buyer-information" required /> <span><a href="legal.html#buyer" target="_blank" rel="noopener">Alıcı Ön Bilgilendirmesi</a>'ni ve listelenen ürün/satıcı bilgilerini okudum.</span></label>
+          <label class="check legal-consent"><input type="checkbox" data-legal-checkout="distance-sale" required /> <span><a href="legal.html#distance-sale" target="_blank" rel="noopener">Mesafeli Satış Sözleşmesi</a>'ni okudum ve kabul ediyorum.</span></label>
+          <label class="check legal-consent"><input type="checkbox" data-legal-checkout="digital-content" required /> <span>Dijital içeriğin ödeme doğrulandıktan sonra hemen sunulmasını talep ediyorum. Cayma hakkına ilişkin bilgiyi <a href="legal.html#buyer" target="_blank" rel="noopener">alıcı bilgilendirmesinde</a> okudum.</span></label>
+          <p class="legal-draft-note">Yasal metinler taslaktır; işletme ve satıcı bilgileri tamamlanıp uzman incelemesi yapılmadan gerçek satışa açılmamalıdır.</p>
+        </div>
         <button class="primary wide" data-checkout ${items.length && (hasBankDetails || isMockEnabled) ? "" : "disabled"}>Ödeme talimatlarını oluştur</button>
       </div>
     </section>
@@ -1912,7 +1823,7 @@ function cartPage() {
 }
 
 function cartItem(note) {
-  return `<div class="row"><div><strong>${escapeHtml(note.title)}</strong><small>${escapeHtml(note.university)}</small></div><span>${money(note.price)}</span><button class="icon-btn" data-remove-cart="${note.id}">×</button></div>`;
+  return `<div class="row"><div><strong>${escapeHtml(note.title)}</strong><small>${escapeHtml(note.university)} · Satıcı: ${escapeHtml(sellerName(note))}</small></div><span>${money(note.price)}</span><button class="icon-btn" data-remove-cart="${note.id}">×</button></div>`;
 }
 
 function studentPage() {
@@ -1933,7 +1844,7 @@ function studentPage() {
         { label: "Favoriler", value: favs.length, target: "student-favorites" },
         { label: "Yorumlarım", value: myReviews.length, target: "student-reviews" }
       ])}
-      ${awaiting.length ? `      <div class="panel payment-orders"><h2>Ödeme durumları</h2><p class="muted">Havale sonrası referans kodunu açıklama alanına yaz ve dekontu gönder. Sistem dekonttaki referans ve tutarı otomatik tarar; indirme adminin son onayından sonra açılır.</p>${awaiting.map((purchase) => paymentOrderCard(purchase)).join("")}</div>` : ""}
+      ${awaiting.length ? `      <div class="panel payment-orders"><h2>Ödeme durumları</h2>${awaiting.map((purchase) => paymentOrderCard(purchase)).join("")}</div>` : ""}
       <div class="columns">
         <div class="panel scroll-target" id="student-purchases"><h2>Satın aldığım materyaller</h2>${purchased.map(ownedItem).join("") || empty("Henüz satın alma yok.")}</div>
         <div class="panel scroll-target" id="student-favorites"><h2>Favoriler</h2>${favs.map(simpleNoteRow).join("") || empty("Favori listen boş.")}</div>
@@ -1949,10 +1860,15 @@ function paymentOrderCard(purchase) {
   const needsReceipt = ["pending_payment", "rejected"].includes(purchase.paymentStatus);
   const canRetestMock = purchase.isMock && purchase.paymentStatus === "pending_review";
   const receiptForm = `
-    <form class="receipt-upload" data-action="receipt" data-purchase="${purchase.id}">
-      <label>Dekont (PDF, JPG, PNG veya WEBP)<input name="receipt" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp" required /></label>
-      <button class="primary small" type="submit">Dekontu kontrol et ve gönder</button>
-      ${purchase.isMock ? `<button class="ghost small" type="button" data-mock-receipt="${purchase.id}" data-mock-result="correct">Doğru örnek dekont</button><button class="ghost small" type="button" data-mock-receipt="${purchase.id}" data-mock-result="wrong">Yanlış örnek dekont</button>` : ""}
+    <form class="receipt-upload" data-action="bank-query" data-purchase="${purchase.id}">
+      <label>
+        Sorgu numarası
+        <div class="field-with-info">
+          <input name="queryNumber" type="text" placeholder="Örnek: 232119312345" required maxlength="40" value="${escapeHtml(purchase.queryNumber || "")}" />
+          <span class="info-tooltip" role="img" aria-label="Sorgu numarasının yeri" title="Ödeme yaptıktan sonra VakıfBank'tan gelen FAST Anlık Ödeme Bilgilendirmesi e-postasını aç. E-posta içindeki “Sorgu No” veya “Sorgu Numarası” alanındaki değeri buraya yaz.">i</span>
+        </div>
+      </label>
+      <button class="primary small" type="submit">Sorgu numarasını gönder</button>
     </form>
   `;
   return `
@@ -1962,7 +1878,6 @@ function paymentOrderCard(purchase) {
         <strong>${money(purchase.amount)}</strong>
       </div>
       <dl class="payment-instructions">
-        <div><dt>Referans kodu</dt><dd><strong>${escapeHtml(purchase.referenceCode || "—")}</strong></dd></div>
         ${purchase.isMock ? `<div><dt>Test modu</dt><dd>Gerçek havale değildir; doğru/yanlış örneklerle OCR'ı deneyebilirsin.</dd></div>` : `
           <div><dt>Banka</dt><dd>${escapeHtml(settings.bankName || "Henüz belirtilmedi")}</dd></div>
           <div><dt>Hesap sahibi</dt><dd>${escapeHtml(settings.accountHolder || "Henüz belirtilmedi")}</dd></div>
@@ -1970,8 +1885,7 @@ function paymentOrderCard(purchase) {
         `}
       </dl>
       ${needsReceipt
-        ? `<p class="muted">${purchase.paymentStatus === "rejected" ? "Dekont reddedildi. Bilgileri kontrol edip yeniden gönderebilirsin." : purchase.isMock ? "Bu yalnızca test siparişidir. Gerçek havale yapma. OCR'ı denemek için doğru ve yanlış örnek dekontları kullan." : `Açıklama alanına <strong>${escapeHtml(purchase.referenceCode || "")}</strong> kodunu aynen yaz. Ödeme tutarı ${money(purchase.amount)} olmalı.`}</p>
-          ${receiptForm}`
+        ? receiptForm
         : `${purchase.paymentStatus === "pending_review" ? receiptCheckSummary(purchase) : `<p class="payment-waiting">Ödeme durumu güncellendi.</p>`}`
       }
       ${canRetestMock ? `<p class="muted">İki sonucu da aynı siparişte deneyebilirsin; yeni test dekontu öncekinin yerini alır.</p>${receiptForm}` : ""}
@@ -1982,10 +1896,10 @@ function paymentOrderCard(purchase) {
 function paymentStatusLabel(status) {
   return ({
     pending_payment: "Ödeme bekleniyor",
-    pending_review: "Dekont inceleniyor",
+    pending_review: "Gmail doğrulaması bekleniyor",
     paid: "Ödeme onaylandı",
     mock_paid: "Mock test onaylandı",
-    rejected: "Dekont reddedildi",
+    rejected: "Sorgu numarası reddedildi",
     refunded: "İade edildi"
   })[status] || "Bilinmeyen durum";
 }
@@ -1997,14 +1911,13 @@ function receiptCheckLabel(purchase) {
     unreadable: "dekonttan bilgi okunamadı",
     not_checked: "otomatik kontrol yapılmadı"
   };
-  if (purchase.receiptCheckStatus === "matched") return `${labels.matched} (referans kodu ve tutar)`;
+  if (purchase.receiptCheckStatus === "matched") return `${labels.matched} (sorgu numarası ve tutar)`;
   if (purchase.receiptCheckStatus === "mismatch") {
-    const referenceMatched = normalizeReceiptReference(purchase.receiptDetectedReference) === normalizeReceiptReference(purchase.referenceCode);
     const amountMatched = purchase.receiptDetectedAmount !== null
       && purchase.receiptDetectedAmount !== undefined
       && Math.round(Number(purchase.receiptDetectedAmount) * 100) === Math.round(Number(purchase.amount) * 100);
     return `${labels.mismatch}: ${[
-      referenceMatched ? "" : "referans kodu eşleşmedi",
+      purchase.queryNumber ? "" : "sorgu numarası eşleşmedi",
       amountMatched ? "" : "tutar eşleşmedi"
     ].filter(Boolean).join(", ") || "bilgiler okunamadı"}`;
   }
@@ -2020,9 +1933,10 @@ function receiptCheckSummary(purchase, adminView = false) {
     && Number.isFinite(Number(purchase.receiptDetectedAmount))
     ? money(purchase.receiptDetectedAmount)
     : "Tutar okunamadı.";
-  const recognizedReference = purchase.receiptDetectedReference
-    ? escapeHtml(purchase.receiptDetectedReference)
-    : "Referans kodu okunamadı.";
+  const detectedQueryNumber = purchase.queryNumber;
+  const recognizedQueryNumber = detectedQueryNumber
+    ? escapeHtml(detectedQueryNumber)
+    : "Sorgu numarası okunamadı.";
   const trustDisclaimer = adminView
     ? "Bu sonuç kullanıcı tarayıcısındaki OCR ön kontrolüdür; değiştirilebilir ve gerçek havale kanıtı değildir."
     : "OCR ön kontrolüdür; son karar admin tarafından verilir.";
@@ -2031,7 +1945,7 @@ function receiptCheckSummary(purchase, adminView = false) {
       <strong>${escapeHtml(receiptCheckLabel(purchase))}</strong>
       <dl class="payment-instructions">
         <div><dt>Okunan açıklama</dt><dd>${explanation}</dd></div>
-        <div><dt>Okunan referans</dt><dd>${recognizedReference}</dd></div>
+        <div><dt>Okunan sorgu numarası</dt><dd>${recognizedQueryNumber}</dd></div>
         <div><dt>Okunan tutar</dt><dd>${detectedAmount}</dd></div>
         <div><dt>Sipariş tutarı</dt><dd>${money(purchase.amount)}</dd></div>
       </dl>
@@ -2041,7 +1955,7 @@ function receiptCheckSummary(purchase, adminView = false) {
 }
 
 function ownedItem(note) {
-  return `<div class="row"><div><strong>${escapeHtml(note.title)}</strong><small>${escapeHtml(note.course)} · ${materialLabel(note)}</small></div>${isBook(note) ? `<button class="ghost small" data-detail="${note.id}">Aç</button>` : `<button class="primary small" data-download="${note.id}">İndir</button>`}</div>`;
+  return `<div class="row"><div><strong>${escapeHtml(note.title)}</strong><small>${escapeHtml(note.course)} · ${materialLabel(note)}</small></div><button class="primary small" data-download="${note.id}">İndir</button></div>`;
 }
 
 function studentReviewRowLegacy(review) {
@@ -2073,7 +1987,7 @@ function sellerPage() {
           <div><h1>Satışlarım</h1><p>Yüklediğin materyaller, onaylanan satışların ve kazanç özetin.</p></div>
           <button class="ghost" type="button" data-open-seller-payment>${paymentProfile?.iban ? "Banka / IBAN bilgilerini düzenle" : "Banka / IBAN bilgilerini ekle"}</button>
         </div>
-        ${notes.map(sellerRow).join("") || empty("Henüz materyal yüklemedin.")}
+        ${notes.map(sellerRow).join("") || empty("Henüz not yüklemedin.")}
       </div>
       <div class="panel scroll-target seller-earnings" id="seller-earnings">
         <h2>Kazanç özeti</h2>
@@ -2096,7 +2010,7 @@ function sellerPage() {
 }
 
 function sellerRow(note) {
-  return `<div class="row"><div><strong>${escapeHtml(note.title)}</strong><small>${materialLabel(note)} · ${statusLabel(note.status)} · ${noteSalesCount(note)} satış</small></div><span>${money(note.price)}</span>${isBook(note) ? `<button class="ghost small" data-detail="${note.id}">Detay</button>` : `<button class="ghost small" data-edit-note="${note.id}">Düzenle</button>`}<button class="danger small" data-delete-note="${note.id}">Sil</button></div>`;
+  return `<div class="row"><div><strong>${escapeHtml(note.title)}</strong><small>${materialLabel(note)} · ${statusLabel(note.status)} · ${noteSalesCount(note)} satış</small></div><span>${money(note.price)}</span><button class="ghost small" data-edit-note="${note.id}">Düzenle</button><button class="danger small" data-delete-note="${note.id}">Sil</button></div>`;
 }
 
 function adminPage() {
@@ -2129,7 +2043,7 @@ function adminPaymentsPanel() {
   const weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
   return `
     <div class="panel admin-payment-panel">
-      <div class="section-head"><div><h2>Dekont kontrolü</h2><p>${waiting.length} dekont incelenmeyi bekliyor. Otomatik ön kontrol; referans ve tutarı tarar, transferin gerçekten gerçekleştiğini doğrulamaz. Erişim için admin onayı gerekir.</p></div></div>
+      <div class="section-head"><div><h2>Ödeme kontrolü</h2><p>${waiting.length} ödeme incelenmeyi bekliyor.</p></div></div>
       <div class="admin-payment-list">${waiting.map(adminPaymentRow).join("") || empty("İncelenmeyi bekleyen dekont yok.")}</div>
       <details class="admin-payment-history">
         <summary>İşlem geçmişi (${reviewed.length})</summary>
@@ -2163,7 +2077,7 @@ function adminPaymentRow(purchase) {
         <strong>${money(purchase.amount)}</strong>
       </div>
       <dl class="payment-instructions">
-        <div><dt>Referans</dt><dd><strong>${escapeHtml(purchase.referenceCode || "—")}</strong></dd></div>
+        ${purchase.queryNumber ? `<div><dt>Sorgu numarası</dt><dd><strong>${escapeHtml(purchase.queryNumber)}</strong></dd></div>` : ""}
         <div><dt>Satıcı</dt><dd>${escapeHtml(note ? sellerName(note) : "Satıcı bulunamadı")}</dd></div>
         <div><dt>Oluşturuldu</dt><dd>${formatDate(purchase.createdAt)}</dd></div>
       </dl>
@@ -2180,7 +2094,7 @@ function adminPaymentRow(purchase) {
 function adminPaymentHistoryRow(purchase) {
   const note = state.notes.find((item) => item.id === purchase.noteId);
   const buyer = state.users.find((item) => item.id === purchase.buyerId);
-  return `<div class="row"><div><strong>${escapeHtml(note?.title || "Not")} ${purchase.isMock ? `<span class="pill">MOCK</span>` : ""}</strong><small>${escapeHtml(buyer?.email || "")} · ${escapeHtml(purchase.referenceCode || "")} · ${paymentStatusLabel(purchase.paymentStatus)}</small></div><span>${money(purchase.amount)}</span></div>`;
+  return `<div class="row"><div><strong>${escapeHtml(note?.title || "Not")} ${purchase.isMock ? `<span class="pill">MOCK</span>` : ""}</strong><small>${escapeHtml(buyer?.email || "")} · ${purchase.queryNumber ? `Sorgu no: ${escapeHtml(purchase.queryNumber)} · ` : ""}${paymentStatusLabel(purchase.paymentStatus)}</small></div><span>${money(purchase.amount)}</span></div>`;
 }
 
 function adminSellerPayoutsPanel() {
@@ -2455,15 +2369,11 @@ function followingCount(user) {
 function noteCount(user) {
   return Number.isFinite(Number(user.adminStats?.notes))
     ? Number(user.adminStats.notes)
-    : state.notes.filter((note) => note.sellerId === user.id && !isBook(note)).length;
-}
-
-function bookCount(user) {
-  return state.notes.filter((note) => note.sellerId === user.id && isBook(note)).length;
+    : state.notes.filter((note) => note.sellerId === user.id).length;
 }
 
 function materialCount(user) {
-  return noteCount(user) + bookCount(user);
+  return noteCount(user);
 }
 
 function discoverUsers(userId) {
@@ -2626,8 +2536,7 @@ function profileHubPage() {
   if (!user) return authPage();
   const followers = followerUsers(user.id);
   const following = followingUsers(user.id);
-  const notes = state.notes.filter((note) => note.sellerId === user.id && !isBook(note));
-  const books = state.notes.filter((note) => note.sellerId === user.id && isBook(note));
+  const notes = state.notes.filter((note) => note.sellerId === user.id);
   const discover = discoverUsers(user.id);
   return `
     <section class="dashboard profile-page">
@@ -2642,7 +2551,6 @@ function profileHubPage() {
                 <button class="profile-stat-pill" data-profile-panel="followers">${followerCount(user)} takip&ccedil;i</button>
                 <button class="profile-stat-pill" data-profile-panel="following">${followingCount(user)} takip edilen</button>
                 <span class="profile-stat-pill">${noteCount(user)} not</span>
-                <span class="profile-stat-pill">${bookCount(user)} kitap</span>
               </span>
             </span>
           </div>
@@ -2657,7 +2565,6 @@ function profileHubPage() {
             <button class="ghost" data-profile-panel="followers">${followerCount(user)} takipçi</button>
             <button class="ghost" data-profile-panel="following">${followingCount(user)} takip edilen</button>
             <span class="profile-stat-pill">${noteCount(user)} not</span>
-            <span class="profile-stat-pill">${bookCount(user)} kitap</span>
             <button class="ghost" type="button" data-logout>Çıkış yap</button>
           </div>
         </div>
@@ -2667,7 +2574,6 @@ function profileHubPage() {
       ${badgeRoadmapPanel(user)}
       <div class="columns">
         <div class="panel"><h2>Notların</h2>${notes.map(simpleNoteRow).join("") || empty("Henüz not yüklemedin.")}</div>
-        <div class="panel"><h2>Kitapların</h2>${books.map(simpleNoteRow).join("") || empty("Henüz kitap yüklemedin.")}</div>
       </div>
       <div class="columns">
         ${profileDiscoverPanel(discover)}
@@ -2731,8 +2637,7 @@ function profilePanelContent(user, followers, following) {
 function publicProfilePage(userId) {
   const user = state.users.find((item) => item.id === userId);
   if (!user) return `<section class="dashboard">${empty("Profil bulunamadı.")}</section>`;
-  const notes = state.notes.filter((note) => note.sellerId === user.id && note.status === "approved" && !isBook(note));
-  const books = state.notes.filter((note) => note.sellerId === user.id && note.status === "approved" && isBook(note));
+  const notes = state.notes.filter((note) => note.sellerId === user.id && note.status === "approved");
   const followers = followerUsers(user.id);
   const following = followingUsers(user.id);
   return `
@@ -2748,7 +2653,6 @@ function publicProfilePage(userId) {
                 <button class="profile-stat-pill" data-profile-panel="followers">${followerCount(user)} takip&ccedil;i</button>
                 <button class="profile-stat-pill" data-profile-panel="following">${followingCount(user)} takip edilen</button>
                 <span class="profile-stat-pill">${noteCount(user)} not</span>
-                <span class="profile-stat-pill">${bookCount(user)} kitap</span>
               </span>
             </span>
           </div>
@@ -2760,7 +2664,6 @@ function publicProfilePage(userId) {
             <button class="profile-stat-pill" data-profile-panel="followers">${followerCount(user)} takipçi</button>
             <button class="profile-stat-pill" data-profile-panel="following">${followingCount(user)} takip edilen</button>
             <span class="profile-stat-pill">${noteCount(user)} not</span>
-            <span class="profile-stat-pill">${bookCount(user)} kitap</span>
             ${followButton(user.id)}
           </div>
         </div>
@@ -2769,7 +2672,6 @@ function publicProfilePage(userId) {
       ${publicProfilePanelContent(user, notes, followers, following)}
       <div class="columns">
         <div class="panel" id="public-notes"><h2>Yüklediği notlar</h2>${notes.map(simpleNoteRow).join("") || empty("Henüz yayında notu yok.")}</div>
-        <div class="panel"><h2>Yüklediği kitaplar</h2>${books.map(simpleNoteRow).join("") || empty("Henüz yayında kitabı yok.")}</div>
       </div>
     </section>
   `;
@@ -2898,7 +2800,7 @@ function statTarget(label) {
 }
 
 function simpleNoteRow(note) {
-  return `<div class="row"><div><strong>${escapeHtml(note.title)}</strong><small>${escapeHtml(note.course)} · ${materialLabel(note)}</small></div><button class="ghost small" data-detail="${note.id}">Aç</button></div>`;
+  return `<div class="row"><div><strong>${escapeHtml(note.title)}</strong><small>${escapeHtml(note.course)} · ${materialLabel(note)}</small></div><button class="primary small" data-download="${note.id}">İndir</button></div>`;
 }
 
 function filterSelect(key, label, values) {
@@ -2958,7 +2860,8 @@ function bindEvents() {
   document.querySelectorAll("[data-filter]").forEach((field) => {
     field.addEventListener("change", () => {
       filters[field.dataset.filter] = field.value;
-      render();
+      if (route.page === "notes") updateNoteSearchResults();
+      else render();
     });
   });
   document.querySelector("[data-reset]")?.addEventListener("click", () => {
@@ -2968,9 +2871,8 @@ function bindEvents() {
   document.querySelector('[data-action="search"]')?.addEventListener("submit", (event) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    filters.query = data.get("query");
-    filters.university = data.get("university");
-    render();
+    filters.query = data.get("query") || "";
+    updateNoteSearchResults();
   });
   document.querySelector('[data-action="admin-user-filter"]')?.addEventListener("submit", (event) => {
     event.preventDefault();
@@ -2999,11 +2901,10 @@ function bindEvents() {
   document.querySelectorAll('[data-action="upload"] input[name="noteFile"], [data-action="edit-note"] input[name="noteFile"]').forEach((input) => {
     input.addEventListener("change", setupPreviewPicker);
   });
-  document.querySelector('[data-action="upload"] input[name="bookImages"]')?.addEventListener("change", previewBookImages);
   document.querySelector('[data-action="profile"]')?.addEventListener("submit", saveProfile);
   document.querySelector('[data-action="seller-payment-profile"]')?.addEventListener("submit", saveSellerPaymentProfile);
   document.querySelector('[data-action="platform-settings"]')?.addEventListener("submit", savePlatformSettings);
-  document.querySelectorAll('[data-action="receipt"]').forEach((form) => form.addEventListener("submit", submitPaymentReceipt));
+  document.querySelectorAll('[data-action="receipt"], [data-action="bank-query"]').forEach((form) => form.addEventListener("submit", submitPaymentReceipt));
   bindClick("[data-profile-cancel]", () => {
     profilePanel = "overview";
     render();
@@ -3023,14 +2924,14 @@ function bindEvents() {
   bindClick("[data-reject-payment]", (button) => reviewPayment(button.dataset.rejectPayment, "reject"));
   bindClick("[data-record-payout]", (button) => recordSellerPayout(button.dataset.recordPayout));
   document.querySelector("[data-logout]")?.addEventListener("click", logout);
-  bindClick("[data-user-profile]", (button) => {
-    if (button.closest("[data-student-carousel]")?.dataset.suppressClick === "true") return;
-    openUserProfile(button.dataset.userProfile);
-  });
+  bindClick("[data-user-profile]", (button) => openUserProfile(button.dataset.userProfile));
   bindClick("[data-follow]", (button) => toggleFollow(button.dataset.follow));
   bindClick("[data-market-dot]", (button) => {
     setMarketInsight(button.dataset.marketDot, Number(button.dataset.marketIndex) || 0);
   });
+  bindClick("[data-home-dot]", (button) => setHomeCommunitySlide(Number(button.dataset.homeDot) || 0));
+  bindClick("[data-home-prev]", () => setHomeCommunitySlide(homeCommunityIndex - 1));
+  bindClick("[data-home-next]", () => setHomeCommunitySlide(homeCommunityIndex + 1));
   bindClick("[data-profile-panel]", (button) => {
     profilePanel = profilePanel === button.dataset.profilePanel ? "overview" : button.dataset.profilePanel;
     render();
@@ -3059,7 +2960,7 @@ function bindEvents() {
   });
   bindClick("[data-add-cart]", (button) => addToCart(button.dataset.addCart));
   bindClick("[data-remove-cart]", (button) => removeFromCart(button.dataset.removeCart));
-  bindClick("[data-favorite]", (button) => toggleFavorite(button.dataset.favorite));
+  bindClick("[data-favorite]", toggleFavorite);
   bindClick("[data-download]", (button) => downloadNote(button.dataset.download));
   bindClick("[data-like-review]", (button) => toggleReviewLike(button.dataset.likeReview));
   bindClick("[data-delete-review]", (button) => deleteReview(button.dataset.deleteReview));
@@ -3122,7 +3023,6 @@ function bindEvents() {
   });
   bindClick("[data-close-report]", (button) => closeReport(button.dataset.closeReport));
   bindClick("[data-delete-report]", (button) => deleteReport(button.dataset.deleteReport));
-  bindStudentCarousel();
   markDocumentPreviewOverflow();
   hydrateRealPdfPreviews();
   hydrateOfficePreviews();
@@ -3130,34 +3030,7 @@ function bindEvents() {
 }
 
 function bindMaterialUploadMode() {
-  const form = document.querySelector('[data-action="upload"]');
-  if (!form) return;
-  const selector = form.elements.materialType;
-  const sync = () => {
-    const isBookMode = selector.value === "book";
-    form.querySelectorAll("[data-note-upload-only]").forEach((item) => item.classList.toggle("material-hidden", isBookMode));
-    form.querySelectorAll("[data-book-upload-only]").forEach((item) => item.classList.toggle("material-hidden", !isBookMode));
-    form.elements.noteFile.required = !isBookMode;
-    form.elements.bookImages.required = isBookMode;
-    form.elements.pageCount.closest("label")?.classList.toggle("material-hidden", isBookMode);
-    form.querySelector("[data-instructor-label]").textContent = isBookMode ? "Kaynak türü" : "Hoca adı";
-    form.elements.instructor.placeholder = isBookMode ? "Ders kitabı, yardımcı kaynak..." : "";
-  };
-  selector.addEventListener("change", sync);
-  sync();
-}
-
-async function previewBookImages(event) {
-  const input = event.currentTarget;
-  const preview = input.form.querySelector("[data-book-image-preview]");
-  const files = [...(input.files || [])].slice(0, 3);
-  if (!preview) return;
-  if (!files.length) {
-    preview.textContent = "3 kitap görseli seçildiğinde burada görünür.";
-    return;
-  }
-  const images = await Promise.all(files.map(readFileAsDataUrl));
-  preview.innerHTML = `<div class="book-thumbs upload-book-thumbs">${images.map((image, index) => `<img src="${escapeHtml(image)}" alt="Kitap görseli ${index + 1}" />`).join("")}</div><small>${files.length}/3 görsel seçildi</small>`;
+  // Upload is intentionally notes-only.
 }
 
 function bindClick(selector, handler) {
@@ -3170,75 +3043,15 @@ function openUserProfile(userId) {
   navigate(userId === currentUser()?.id ? { page: "profile" } : { page: "user", id: userId });
 }
 
-function bindStudentCarousel() {
-  const carousel = document.querySelector("[data-student-carousel]");
-  if (!carousel) return;
-  const stage = carousel.querySelector(".student-carousel-stage");
-  if (!stage) return;
-  let rotation = -12;
-  let startX = 0;
-  let lastX = 0;
-  let dragging = false;
-  let pressedProfileId = "";
-  let resumeTimer = null;
-  let lastFrame = performance.now();
-  const render = () => {
-    stage.style.setProperty("--carousel-rotation", `${rotation}deg`);
-  };
-  const setPaused = (paused) => {
-    carousel.dataset.paused = paused ? "true" : "false";
-  };
-  const tick = (time) => {
-    if (!document.body.contains(carousel)) return;
-    const delta = time - lastFrame;
-    lastFrame = time;
-    if (!dragging && carousel.dataset.paused !== "true") {
-      rotation += delta * 0.006;
-      render();
-    }
-    requestAnimationFrame(tick);
-  };
-  render();
-  setPaused(false);
-  requestAnimationFrame(tick);
-  carousel.addEventListener("pointerdown", (event) => {
-    if (event.button !== undefined && event.button !== 0) return;
-    dragging = true;
-    pressedProfileId = event.target.closest("[data-user-profile]")?.dataset.userProfile || "";
-    setPaused(true);
-    clearTimeout(resumeTimer);
-    startX = event.clientX;
-    lastX = event.clientX;
-    carousel.classList.add("dragging");
-    carousel.setPointerCapture(event.pointerId);
-  });
-  carousel.addEventListener("pointermove", (event) => {
-    if (!dragging) return;
-    const dx = event.clientX - lastX;
-    lastX = event.clientX;
-    rotation += dx * 0.34;
-    render();
-  });
-  carousel.addEventListener("pointerup", (event) => {
-    if (!dragging) return;
-    const distance = event.clientX - startX;
-    dragging = false;
-    carousel.classList.remove("dragging");
-    if (Math.abs(distance) > 48) {
-      carousel.dataset.suppressClick = "true";
-      setTimeout(() => delete carousel.dataset.suppressClick, 80);
-    } else if (pressedProfileId) {
-      event.preventDefault();
-      openUserProfile(pressedProfileId);
-    }
-    pressedProfileId = "";
-    resumeTimer = setTimeout(() => setPaused(false), 1100);
-  });
-  carousel.addEventListener("pointercancel", () => {
-    dragging = false;
-    pressedProfileId = "";
-    carousel.classList.remove("dragging");
-    resumeTimer = setTimeout(() => setPaused(false), 800);
+function setHomeCommunitySlide(nextIndex) {
+  const root = document.querySelector("[data-home-carousel]");
+  if (!root) return;
+  const slides = root.querySelectorAll(".home-feed-card");
+  if (!slides.length) return;
+  homeCommunityIndex = (nextIndex + slides.length) % slides.length;
+  root.querySelector("[data-home-track]").style.transform = `translateX(-${homeCommunityIndex * 100}%)`;
+  root.querySelectorAll("[data-home-dot]").forEach((dot, index) => {
+    dot.classList.toggle("active", index === homeCommunityIndex);
   });
 }
 
@@ -3703,10 +3516,18 @@ async function register(event) {
   if (window.NotumSupabase?.isConfigured) {
     try {
       const nextState = await window.NotumSupabase.register(
-        { name: data.get("name").trim(), email, password: data.get("password") },
+        {
+          name: data.get("name").trim(),
+          email,
+          password: data.get("password"),
+          legalAcceptances: makeLegalAcceptanceRecords("", ["privacy_notice", "terms_of_use"])
+        },
         state
       );
       state = normalizeState(nextState);
+      if (currentUser()) {
+        state.legalAcceptances.push(...makeLegalAcceptanceRecords(currentUser().id, ["privacy_notice", "terms_of_use"]));
+      }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
       if (nextState.pendingEmailVerification) {
         alert("Hesap olustu. Giris yapmadan once e-postana gelen dogrulama linkine tikla.");
@@ -3733,6 +3554,7 @@ async function register(event) {
   };
   state.users.push(user);
   state.currentUserId = user.id;
+  state.legalAcceptances.push(...makeLegalAcceptanceRecords(user.id, ["privacy_notice", "terms_of_use"]));
   saveState();
   navigate({ page: "home" });
 }
@@ -3760,11 +3582,6 @@ async function upload(event) {
     return;
   }
   const data = new FormData(form);
-  const selectedMaterialType = data.get("materialType") === "book" ? "book" : "note";
-  if (selectedMaterialType === "book") {
-    await uploadBook(data, user);
-    return;
-  }
   const file = data.get("noteFile");
   if (!(file instanceof File) || !file.name) {
     alert("Lütfen PDF, DOCX, PPTX veya TXT formatında bir not dosyası seç.");
@@ -3773,6 +3590,12 @@ async function upload(event) {
   const fileType = detectFileType(file.name);
   if (!["PDF", "DOCX", "PPTX", "TXT"].includes(fileType)) {
     alert("Desteklenen dosya tipleri: PDF, DOCX, PPTX, TXT.");
+    return;
+  }
+  try {
+    await saveLegalAcceptances(user, ["seller_agreement"]);
+  } catch (error) {
+    alert(error.message || "Satıcı sözleşmesi onayı kaydedilemedi. Not yayınlanmadı.");
     return;
   }
   const title = data.get("title").trim();
@@ -3816,46 +3639,6 @@ async function upload(event) {
     preview: extractedPreviewPages.length
       ? previewNumbers.map((pageNumber) => extractedPreviewPages[pageNumber - 1]).filter(Boolean).slice(0, 5)
       : buildFilePreviewPages(previewNumbers, title, description)
-  });
-  saveState();
-  navigate({ page: "detail", id: noteId });
-}
-
-async function uploadBook(data, user) {
-  const imageFiles = data.getAll("bookImages").filter((file) => file instanceof File && file.name);
-  if (imageFiles.length !== 3) {
-    alert("Kitap yüklemek için tam 3 kitap görseli seçmelisin.");
-    return;
-  }
-  if (imageFiles.some((file) => !file.type.startsWith("image/"))) {
-    alert("Kitap görselleri yalnızca resim dosyası olmalı.");
-    return;
-  }
-  const title = data.get("title").trim();
-  const description = data.get("description").trim();
-  const noteId = id("b");
-  const bookImages = await Promise.all(imageFiles.map(readFileAsDataUrl));
-  state.notes.unshift({
-    id: noteId,
-    sellerId: user.id,
-    materialType: "book",
-    title,
-    description,
-    university: data.get("university").trim(),
-    faculty: data.get("faculty").trim(),
-    department: data.get("department").trim(),
-    course: data.get("course").trim(),
-    instructor: data.get("instructor").trim(),
-    condition: data.get("condition") || "İyi",
-    fileType: "2. EL",
-    bookImages,
-    price: Number(data.get("price")),
-    previewPages: 0,
-    status: window.NotumSupabase?.isConfigured ? "pending" : "approved",
-    sales: 0,
-    views: 1,
-    createdAt: new Date().toISOString().slice(0, 10),
-    aiSummary: suggestBookSummary(title, description)
   });
   saveState();
   navigate({ page: "detail", id: noteId });
@@ -3940,19 +3723,13 @@ async function extractStoredPreviewPages(note) {
 
 function fillAiSummary() {
   const form = document.querySelector('[data-action="upload"], [data-action="edit-note"]');
-  const isBookMode = form.elements.materialType?.value === "book";
-  const title = form.elements.title.value || (isBookMode ? "Bu kitap" : "Bu not");
-  form.elements.description.value = isBookMode ? suggestBookSummary(title, form.elements.description.value) : suggestSummary(title, form.elements.description.value);
+  const title = form.elements.title.value || "Bu not";
+  form.elements.description.value = suggestSummary(title, form.elements.description.value);
 }
 
 function suggestSummary(title, text) {
   const base = text?.trim() || title;
   return `${base.slice(0, 120)}${base.length > 120 ? "..." : ""} Sınav öncesi hızlı tekrar ve konu pekiştirme için hazırlanmış kısa açıklama.`;
-}
-
-function suggestBookSummary(title, text) {
-  const base = text?.trim() || title;
-  return `${base.slice(0, 120)}${base.length > 120 ? "..." : ""} Ders için kullanılabilecek ikinci el kitap ilanı. Görseller ürün durumunu temsil eder.`;
 }
 
 function parsePreviewText(value, title, description) {
@@ -4013,6 +3790,11 @@ async function checkout() {
     navigate({ page: "auth" });
     return;
   }
+  const checkoutConsents = [...document.querySelectorAll("[data-legal-checkout]")];
+  if (checkoutConsents.some((checkbox) => !checkbox.checked)) {
+    alert("Devam etmek için alıcı bilgilendirmesi ve dijital içeriğe ilişkin onayları vermen gerekiyor.");
+    return;
+  }
   const isMock = Boolean(document.querySelector("[data-mock-payment]")?.checked);
   if (isMock && !state.platformSettings?.mockPaymentsEnabled) {
     alert("Mock ödemeler şu anda admin tarafından kapalı.");
@@ -4032,6 +3814,12 @@ async function checkout() {
     navigate({ page: "student" });
     return;
   }
+  try {
+    await saveLegalAcceptances(user, ["buyer_preinfo", "distance_sale_contract", "digital_content_immediate"]);
+  } catch (error) {
+    alert(error.message || "Alıcı onayları kaydedilemedi. Sipariş oluşturulmadı.");
+    return;
+  }
   const createdNoteIds = [];
   const skippedNoteIds = [];
   try {
@@ -4041,18 +3829,17 @@ async function checkout() {
         skippedNoteIds.push(noteId);
         continue;
       }
-      const referenceCode = createReferenceCode();
+      const purchaseId = id("p");
       const purchase = {
-        id: id("p"),
+        id: purchaseId,
         buyerId: user.id,
         noteId,
         amount: note.price,
         paymentStatus: "pending_payment",
-        referenceCode,
         receiptPath: "",
         isMock,
         createdAt: new Date().toISOString(),
-        downloadToken: `DL-${referenceCode.slice(-10)}`
+        downloadToken: `DL-${crypto.randomUUID().replace(/-/g, "").slice(0, 10).toUpperCase()}`
       };
       const saved = window.NotumSupabase?.isConfigured
         ? await window.NotumSupabase.createPurchase(purchase)
@@ -4079,19 +3866,62 @@ async function checkout() {
   navigate({ page: "student" });
 }
 
-function createReferenceCode() {
-  const bytes = new Uint8Array(8);
-  crypto.getRandomValues(bytes);
-  const suffix = [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("").toUpperCase();
-  const date = new Date().toISOString().slice(0, 10).replace(/-/g, "");
-  return `NTM-${date}-${suffix}`;
-}
-
 async function submitPaymentReceipt(event) {
   event.preventDefault();
   const purchaseId = event.currentTarget.dataset.purchase;
-  const file = new FormData(event.currentTarget).get("receipt");
-  await sendPaymentReceipt(purchaseId, file, event.currentTarget.querySelector('[type="submit"]'));
+  const formData = new FormData(event.currentTarget);
+  const queryNumber = String(formData.get("queryNumber") || "").trim();
+  const purchase = state.purchases.find((item) => item.id === purchaseId);
+  const canRetry = purchase && ["pending_payment", "rejected"].includes(purchase.paymentStatus);
+  if (!purchase || !canRetry) {
+    alert("Bu sipariş şu anda sorgu numarası kabul etmiyor.");
+    return;
+  }
+  const normalizedQuery = queryNumber.replace(/[^A-Z0-9]/gi, "").toUpperCase();
+  if (!normalizedQuery) {
+    alert("Sorgu numarası boş olamaz.");
+    return;
+  }
+
+  const submitButton = event.currentTarget.querySelector('[type="submit"]');
+  if (submitButton) {
+    submitButton.disabled = true;
+    submitButton.textContent = "Gmail kontrol ediliyor…";
+  }
+
+  try {
+    const verification = await window.NotumSupabase?.verifyPaymentQuery?.(purchaseId, normalizedQuery);
+    if (!verification) {
+      throw new Error("Gmail ile ödeme kontrolü için siteye Supabase hesabınızla giriş yapın.");
+    }
+    const updated = {
+      ...purchase,
+      queryNumber: normalizedQuery,
+      paymentStatus: verification.paymentStatus,
+      receiptCheckStatus: verification.matched ? "matched" : "mismatch",
+      receiptDetectedReference: normalizedQuery,
+      receiptDetectedAmount: verification.detectedAmount ?? null,
+      receiptDetectedDescription: verification.matched
+        ? "Sorgu numarası ve tutar VakıfBank e-postasıyla eşleşti."
+        : "Bugün gelen VakıfBank e-postalarında aynı sorgu numarası ve tutar bulunamadı.",
+      reviewedAt: verification.matched ? new Date().toISOString() : ""
+    };
+    if (verification.matched) applyConfirmedPurchaseLocally(updated);
+    state.purchases = state.purchases.map((item) => item.id === purchaseId ? updated : item);
+    saveState();
+    render();
+    alert(verification.matched
+      ? "Ödeme doğrulandı. Not artık indirilebilir."
+      : "Bugünkü VakıfBank maillerinde sorgu numarası ve tutar eşleşmedi. E-postadaki numarayı kontrol edip tekrar deneyin.");
+  } catch (error) {
+    console.error("Payment query submission failed", { purchaseId, error });
+    alert(error.message || "Sorgu numarası kaydedilemedi.");
+  } finally {
+    if (submitButton) {
+      submitButton.disabled = false;
+      submitButton.textContent = "Sorgu numarasını gönder";
+    }
+  }
 }
 
 async function sendPaymentReceipt(purchaseId, file, submitButton) {
@@ -4380,7 +4210,7 @@ async function reviewPayment(purchaseId, decision) {
     const amount = money(purchase.amount);
     const message = purchase.isMock
       ? `Bu sipariş MOCK TEST'tir; gerçek ödeme değildir. ${amount} tutarını mock olarak onaylamak istiyor musun?`
-      : `Dekont açıklamasında ${purchase.referenceCode} kodunu ve ${amount} tutarını doğruladın mı? Onaydan sonra not indirilebilir olacak.`;
+      : `Bu ${amount} tutarındaki ödemeyi onaylamak istiyor musun? Onaydan sonra not indirilebilir olacak.`;
     if (!confirm(message)) return;
   }
   if (decision === "reject" && !confirm("Bu dekontu reddetmek istiyor musun?")) return;
@@ -4510,15 +4340,20 @@ async function recordSellerPayout(sellerId) {
     alert(error.message || "Satıcı ödemesi kaydedilemedi.");
   }
 }
-function toggleFavorite(noteId) {
+function toggleFavorite(button) {
   const user = currentUser();
   if (!user) return;
+  const noteId = button.dataset.favorite;
   const exists = isFavorite(noteId);
   state.favorites = exists
     ? state.favorites.filter((favorite) => !(favorite.userId === user.id && favorite.noteId === noteId))
     : [...state.favorites, { userId: user.id, noteId }];
+  const isNowFavorite = !exists;
+  button.classList.toggle("active", isNowFavorite);
+  button.textContent = isNowFavorite ? "♥" : "♡";
+  button.setAttribute("aria-pressed", String(isNowFavorite));
+  button.setAttribute("aria-label", isNowFavorite ? "Favorilerden kaldır" : "Favorilere ekle");
   saveState();
-  render();
 }
 
 function addReview(event) {
@@ -4587,10 +4422,6 @@ async function downloadNote(noteId) {
   const user = currentUser();
   const note = state.notes.find((item) => item.id === noteId);
   if (!note) return;
-  if (isBook(note)) {
-    alert("Kitaplar fiziksel satış içindir; indirilebilir dosya bulunmaz.");
-    return;
-  }
   const purchase = state.purchases.find((item) =>
     item.buyerId === user?.id
     && item.noteId === noteId
@@ -5113,17 +4944,35 @@ async function moderateNote(noteId, status) {
   render();
 }
 
-function deleteNote(noteId) {
+async function deleteNote(noteId) {
   if (!confirm("Bu not silinsin mi?")) return;
+  try {
+    if (window.NotumSupabase?.isConfigured) {
+      await window.NotumSupabase.deleteNote?.(noteId);
+    }
+  } catch (error) {
+    console.error("Not silme Supabase hatası", error);
+    alert(error.message || "Not silinemedi. Lütfen tekrar deneyin.");
+    return;
+  }
   removeNote(noteId);
   saveState();
   render();
 }
 
-function adminDeleteNote(noteId) {
+async function adminDeleteNote(noteId) {
   const note = state.notes.find((item) => item.id === noteId);
   if (!note) return;
   if (!confirm(`"${note.title}" notu silinsin mi? Bu işlem notun yorumlarını, favorilerini, satın alma kayıtlarını ve şikayetlerini de kaldırır.`)) return;
+  try {
+    if (window.NotumSupabase?.isConfigured) {
+      await window.NotumSupabase.deleteNote?.(noteId);
+    }
+  } catch (error) {
+    console.error("Admin not silme Supabase hatası", error);
+    alert(error.message || "Not silinemedi. Lütfen tekrar deneyin.");
+    return;
+  }
   removeNote(noteId);
   saveState();
   render();
@@ -5287,9 +5136,3 @@ hydrateSupabaseState()
       render();
     });
   });
-
-setInterval(() => {
-  if (!["notes", "books"].includes(route.page)) return;
-  const type = route.page === "books" ? "book" : "note";
-  setMarketInsight(type, (marketInsightIndex[type] || 0) + 1);
-}, 8500);

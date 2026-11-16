@@ -72,6 +72,7 @@
       noteId: row.note_id,
       amount: Number(row.amount || 0),
       paymentStatus: row.payment_status,
+      queryNumber: row.query_number || "",
       referenceCode: row.reference_code || "",
       receiptPath: row.receipt_path || "",
       receiptCheckStatus: row.receipt_check_status || "not_checked",
@@ -363,12 +364,33 @@
       note_id: purchase.noteId,
       amount: purchase.amount,
       payment_status: "pending_payment",
-      reference_code: purchase.referenceCode,
       is_mock: Boolean(purchase.isMock),
       download_token: purchase.downloadToken
     }).select("*").single();
     if (error) throw error;
     return purchaseFromRow(data);
+  }
+
+  async function verifyPaymentQuery(purchaseId, queryNumber) {
+    if (!client) throw new Error("Gmail doğrulaması için Supabase bağlantısı gerekli.");
+    const { data, error: sessionError } = await client.auth.getSession();
+    if (sessionError) throw sessionError;
+    const accessToken = data.session?.access_token;
+    if (!accessToken) throw new Error("Ödeme doğrulaması için tekrar giriş yapın.");
+
+    const response = await fetch("/api/payments/verify", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ purchaseId, queryNumber })
+    });
+    const result = await response.json().catch(() => null);
+    if (!response.ok) {
+      throw new Error(result?.error || "Ödeme sorgusu doğrulanamadı.");
+    }
+    return result;
   }
 
   async function uploadPaymentReceipt(purchaseId, file, receiptCheck, previousReceiptPath = "") {
@@ -468,6 +490,21 @@
     return true;
   }
 
+  async function deleteNote(noteId) {
+    if (!client || !noteId) return false;
+    const { data, error } = await client
+      .from("notes")
+      .delete()
+      .eq("id", noteId)
+      .select("id")
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) {
+      throw new Error("Not Supabase'den silinemedi. Yetki ve notes delete policy'sini kontrol edin.");
+    }
+    return true;
+  }
+
   async function pushState(state) {
     const authUser = await currentAuthUser();
     if (!authUser) return;
@@ -520,7 +557,7 @@
     return loadState(baseState);
   }
 
-  async function register({ name, email, password }, baseState) {
+  async function register({ name, email, password, legalAcceptances = [] }, baseState) {
     if (!client) return null;
     if (!isStudentEmail(email)) {
       throw new Error("Kayit icin edu uzantili ogrenci e-postasi kullanmalisin.");
@@ -529,7 +566,14 @@
       email,
       password,
       options: {
-        data: { name },
+        data: {
+          name,
+          legal_acceptances: legalAcceptances.map((item) => ({
+            document_key: item.documentKey,
+            version: item.version,
+            accepted_at: item.acceptedAt
+          }))
+        },
         emailRedirectTo: `${window.location.origin}${window.location.pathname}#/auth`
       }
     });
@@ -539,6 +583,20 @@
       return loadState(baseState);
     }
     return { ...baseState, currentUserId: null, pendingEmailVerification: email };
+  }
+
+  async function recordLegalAcceptances(records) {
+    if (!client || !records.length) return;
+    const authUser = await currentAuthUser();
+    if (!authUser) throw new Error("Onayları kaydetmek için oturum açmanız gerekiyor.");
+    const rows = records.map((record) => ({
+      user_id: authUser.id,
+      document_key: record.documentKey,
+      version: record.version,
+      accepted_at: record.acceptedAt
+    }));
+    const { error } = await client.from("legal_acceptances").insert(rows);
+    if (error) throw error;
   }
 
   async function logout() {
@@ -644,13 +702,16 @@
     saveSellerPaymentDetails,
     updatePlatformSettings,
     createPurchase,
+    verifyPaymentQuery,
     uploadPaymentReceipt,
     getPaymentReceiptUrl,
     reviewPurchase,
     recordSellerPayout,
     updateNoteStatus,
+    deleteNote,
     login,
     register,
+    recordLegalAcceptances,
     logout,
     saveUploadedFile,
     getUploadedFile,

@@ -88,11 +88,14 @@ alter table public.purchases add column if not exists receipt_detected_amount nu
 alter table public.purchases add column if not exists receipt_detected_description text;
 alter table public.purchases add column if not exists is_mock boolean not null default false;
 alter table public.purchases add column if not exists reviewed_at timestamptz;
+alter table public.purchases add column if not exists query_number text;
 alter table public.purchases drop constraint if exists purchases_payment_status_check;
 alter table public.purchases add constraint purchases_payment_status_check
 check (payment_status in ('pending_payment', 'pending_review', 'paid', 'mock_paid', 'rejected', 'refunded'));
 create unique index if not exists purchases_reference_code_unique
 on public.purchases (reference_code) where reference_code is not null;
+create unique index if not exists purchases_paid_query_number_unique
+on public.purchases (query_number) where query_number is not null and payment_status in ('paid', 'mock_paid');
 
 create table if not exists public.seller_payment_profiles (
   user_id uuid primary key references public.profiles(id) on delete cascade,
@@ -160,6 +163,66 @@ create table if not exists public.follows (
   primary key (follower_id, following_id),
   check (follower_id <> following_id)
 );
+
+create table if not exists public.legal_acceptances (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  document_key text not null check (document_key in (
+    'privacy_notice',
+    'terms_of_use',
+    'seller_agreement',
+    'buyer_preinfo',
+    'distance_sale_contract',
+    'digital_content_immediate'
+  )),
+  version text not null,
+  accepted_at timestamptz not null default now()
+);
+
+create index if not exists legal_acceptances_user_accepted_at_idx
+on public.legal_acceptances (user_id, accepted_at desc);
+
+create or replace function public.set_legal_acceptance_server_time()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.accepted_at = now();
+  return new;
+end;
+$$;
+
+drop trigger if exists legal_acceptances_set_server_time on public.legal_acceptances;
+create trigger legal_acceptances_set_server_time
+before insert on public.legal_acceptances
+for each row execute function public.set_legal_acceptance_server_time();
+
+create or replace function public.capture_signup_legal_acceptances()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  if jsonb_typeof(new.raw_user_meta_data -> 'legal_acceptances') = 'array' then
+    insert into public.legal_acceptances (user_id, document_key, version, accepted_at)
+    select
+      new.id,
+      item ->> 'document_key',
+      item ->> 'version',
+      now()
+    from jsonb_array_elements(new.raw_user_meta_data -> 'legal_acceptances') as acceptance(item)
+    where item ->> 'document_key' in ('privacy_notice', 'terms_of_use')
+      and nullif(item ->> 'version', '') is not null;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists auth_users_capture_legal_acceptances on auth.users;
+create trigger auth_users_capture_legal_acceptances
+after insert on auth.users
+for each row execute function public.capture_signup_legal_acceptances();
 
 create table if not exists public.categories (
   id text primary key,
@@ -247,6 +310,7 @@ alter table public.reviews enable row level security;
 alter table public.favorites enable row level security;
 alter table public.reports enable row level security;
 alter table public.follows enable row level security;
+alter table public.legal_acceptances enable row level security;
 alter table public.categories enable row level security;
 
 drop policy if exists "profiles are readable" on public.profiles;
@@ -373,6 +437,9 @@ returns trigger
 language plpgsql
 as $$
 begin
+  if auth.role() = 'service_role' then
+    return new;
+  end if;
   if public.is_admin() then
     return new;
   end if;
@@ -603,6 +670,14 @@ for insert with check (follower_id = auth.uid());
 drop policy if exists "users delete own follows" on public.follows;
 create policy "users delete own follows" on public.follows
 for delete using (follower_id = auth.uid());
+
+drop policy if exists "users and admins read legal acceptances" on public.legal_acceptances;
+create policy "users and admins read legal acceptances" on public.legal_acceptances
+for select using (user_id = auth.uid() or public.is_admin());
+
+drop policy if exists "users insert own legal acceptances" on public.legal_acceptances;
+create policy "users insert own legal acceptances" on public.legal_acceptances
+for insert with check (user_id = auth.uid());
 
 drop policy if exists "categories readable" on public.categories;
 create policy "categories readable" on public.categories

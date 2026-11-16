@@ -5,6 +5,7 @@
   "description": "Türkiye'deki üniversite öğrencileri için ders notu alış-satış platformu.",
   "scripts": {
     "start": "node server.js",
-    "import:supabase-catalog": "node scripts/import-supabase-catalog.js"
+    "import:supabase-catalog": "node scripts/import-supabase-catalog.js",
+    "payment:verify": "node scripts/gmail-payment-verifier.js"
   }
 }
